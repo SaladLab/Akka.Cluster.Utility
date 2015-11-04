@@ -15,10 +15,13 @@ namespace Basic
             _clusterContext = context;
             _clusterUniqueAddress = Cluster.Get(Context.System).SelfUniqueAddress;
 
-            _clusterContext.ClusterActorDiscovery.Tell(
-                new ClusterActorDiscoveryMessages.RegisterActor(Self, typeof(EchoConsumerActor).Name));
-
             Receive<string>(m => OnMessage(m));
+        }
+
+        protected override void PreStart()
+        {
+            _clusterContext.ClusterActorDiscovery.Tell(
+                new ClusterActorDiscoveryMessages.RegisterActor(Self, nameof(EchoConsumerActor)));
         }
 
         private void OnMessage(string s)
