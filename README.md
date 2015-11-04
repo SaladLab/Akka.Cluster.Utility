@@ -53,7 +53,7 @@ It just receives echo messages from producer and write them.
 But it has to tell `ClusterActorDiscovery` that it is created on PreStart for producer actors
 to know the existence of consumer.
 
-```charp
+```csharp
 class EchoConsumerActor : ReceiveActor
 {
     ClusterNodeContext _clusterContext;
@@ -69,7 +69,8 @@ class EchoConsumerActor : ReceiveActor
 
     protected override void PreStart()
     {
-        _clusterContext.ClusterActorDiscovery.Tell(new ClusterActorDiscoveryMessages.RegisterActor(Self, typeof(EchoConsumerActor).Name));
+        _clusterContext.ClusterActorDiscovery.Tell(
+            new ClusterActorDiscoveryMessages.RegisterActor(Self, nameof(EchoConsumerActor)));
     }
 
     private void OnMessage(string s)
@@ -86,7 +87,7 @@ of consumer actors. Right after producer is created, it requests `ClusterActorDi
 notice change of consumer actors. `ClusterActorDiscovery` will send ActorUp and ActorDown
 notification messages when something happens.
 
-```charp
+```csharp
 class EchoProducerActor : ReceiveActor
 {
     ClusterNodeContext _clusterContext;
@@ -104,8 +105,10 @@ class EchoProducerActor : ReceiveActor
 
     protected override void PreStart()
     {
-        _clusterContext.ClusterActorDiscovery.Tell(new ClusterActorDiscoveryMessages.MonitorActor(typeof(EchoConsumerActor).Name));
-        _clusterContext.System.Scheduler.ScheduleTellRepeatedly(TimeSpan.Zero, TimeSpan.FromSeconds(1), Self, "Echo", null);
+        _clusterContext.ClusterActorDiscovery.Tell(
+            new ClusterActorDiscoveryMessages.MonitorActor(nameof(EchoConsumerActor)));
+        _clusterContext.System.Scheduler.ScheduleTellRepeatedly(
+            TimeSpan.Zero, TimeSpan.FromSeconds(1), Self, "Echo", null);
     }
 
     private void OnMessage(ClusterActorDiscoveryMessages.ActorUp m)
