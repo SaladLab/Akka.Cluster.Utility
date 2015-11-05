@@ -91,11 +91,11 @@ let createNugetPackages _ =
         let dllFileName = project.Folder @@ "bin/Release" @@ project.Name;
         (!! (dllFileName + ".dll")
          ++ (dllFileName + ".pdb")
-         ++ (dllFileName + ".xml")) |> CopyFiles (workDir @@ "lib/net45")
+         ++ (dllFileName + ".xml")) |> CopyFiles (workDir @@ "lib" @@ "net45")
 
         let isAssemblyInfo f = (filename f).Contains("AssemblyInfo")
         let isSrc f = (hasExt ".cs" f) && not (isAssemblyInfo f)
-        CopyDir (workDir @@ @"src") project.Folder isSrc
+        CopyDir (workDir @@ "src") project.Folder isSrc
 
         NuGet (fun p -> 
             {p with
@@ -154,7 +154,7 @@ Target "Help" (fun _ ->
       " * Test         Build and Test"
       " * Nuget        Create and publish nugets packages"
       " * CreateNuget  Create nuget packages"
-      "                [ "
+      "                [nugetprerelease={VERSION_PRERELEASE}] "
       " * PublishNuget Publish nugets packages"
       "                [nugetkey={API_KEY}] [nugetpublishurl={PUBLISH_URL}]"
       ""]
