@@ -13,10 +13,7 @@
     <releaseNotes>@releaseNotes@</releaseNotes>
     <copyright>Copyright © 2015 Saladbowl Creative</copyright>
     <tags>akka cluster utility</tags>
-    <dependencies>
-      <dependency id="Akka" version="1.0.4"/>
-      <dependency id="Akka.Cluster" version="1.0.4.12-beta"/>
-    </dependencies>
+    @dependencies@
     @references@
   </metadata>
 </package>
