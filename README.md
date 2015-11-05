@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/7upfwl804u1m3huf/branch/master?svg=true)](https://ci.appveyor.com/project/veblush/akka-cluster-utility/branch/master)
+
 # Akka.Cluster.Utility
 
 This library provides small utilities that might be useful to write a program
