@@ -2,8 +2,10 @@
 #r "FakeLib.dll"
 
 open Fake
+open System.IO
 open Fake.Testing.XUnit2
 open Fake.AssemblyInfoFile
+open Fake.ReleaseNotesHelper
 
 // ------------------------------------------------------------------------------ Project
 
@@ -15,8 +17,12 @@ type Project = {
     Folder: string;
     AssemblyVersion: string;
     PackageVersion: string;
+    Releases: ReleaseNotes list;
     Dependencies: (string * string) list;
 }
+
+let emptyProject = { Name=""; Folder=""; AssemblyVersion="";
+                     PackageVersion=""; Releases=[]; Dependencies=[] }
 
 let decoratePrerelease v =
     let couldParse, parsedInt = System.Int32.TryParse(v)
@@ -29,18 +35,31 @@ let decoratePackageVersion v =
         v
 
 let projects = ([
-    { 
+    {   emptyProject with
         Name="Akka.Cluster.Utility";
         Folder="./core/Akka.Cluster.Utility";
-        AssemblyVersion="0.1.0";
-        PackageVersion="";
-        Dependencies=[("Akka", "1.0.4"); ("Akka.Cluster", "1.0.4.12-beta")];
+        Dependencies=[("Akka", "1.0.4"); 
+                      ("Akka.Cluster", "1.0.4.12-beta")];
     }]
-    |> List.map (fun p -> { p with PackageVersion=decoratePackageVersion(p.AssemblyVersion) }))
+    |> List.map (fun p -> 
+        let parsedReleases =
+            File.ReadLines (p.Folder @@ (p.Name + ".Release.md"))
+            |> ReleaseNotesHelper.parseAllReleaseNotes
+        let latest = List.head parsedReleases
+        { p with AssemblyVersion = latest.AssemblyVersion;
+                 PackageVersion = decoratePackageVersion(latest.AssemblyVersion);
+                 Releases = parsedReleases }
+    ))
 
 let project name =
     List.filter (fun p -> p.Name = name) projects |> List.head
 
+let dependencies p =
+    p.Dependencies |>
+    List.map (fun d -> match d with 
+                       | (id, "") -> (id, (project id).PackageVersion)
+                       | (id, ver) -> (id, ver))
+    
 // ---------------------------------------------------------------------------- Variables
 
 let binDir = "bin"
@@ -52,8 +71,6 @@ let nugetWorkDir = nugetDir @@ "work"
 
 Target "Clean" (fun _ -> 
     CleanDirs [binDir]
-    !! ("./core/**/bin/" + buildConfiguration + "/*.Tests.dll")
-    |> Seq.iter (fun p -> trace ("!" + p))
 )
 
 Target "AssemblyInfo" (fun _ ->
@@ -61,7 +78,8 @@ Target "AssemblyInfo" (fun _ ->
     |> List.iter (fun p -> 
         CreateCSharpAssemblyInfo (p.Folder @@ "Properties" @@ "AssemblyInfoGenerated.cs")
           [ Attribute.Version p.AssemblyVersion
-            Attribute.FileVersion p.AssemblyVersion ]
+            Attribute.FileVersion p.AssemblyVersion
+            Attribute.InformationalVersion p.PackageVersion ]
         )
 )
 
@@ -89,10 +107,18 @@ let createNugetPackages _ =
         let workDir = nugetWorkDir @@ project.Name;
 
         let dllFileName = project.Folder @@ "bin/Release" @@ project.Name;
-        (!! (dllFileName + ".dll")
-         ++ (dllFileName + ".pdb")
-         ++ (dllFileName + ".xml")) |> CopyFiles (workDir @@ "lib" @@ "net45")
+        let dllFiles = (!! (dllFileName + ".dll")
+                        ++ (dllFileName + ".pdb")
+                        ++ (dllFileName + ".xml"))
+        dllFiles |> CopyFiles (workDir @@ "lib" @@ "net45")
 
+        let dllFileNameNet35 = (project.Folder + ".Net35") @@ "bin/Release" @@ project.Name;
+        let dllFilesNet35 = (!! (dllFileNameNet35 + ".dll")
+                             ++ (dllFileNameNet35 + ".pdb")
+                             ++ (dllFileNameNet35 + ".xml"))
+        if (Seq.length dllFilesNet35 > 0) then (
+            dllFilesNet35 |> CopyFiles (workDir @@ "lib" @@ "net35"))
+         
         let isAssemblyInfo f = (filename f).Contains("AssemblyInfo")
         let isSrc f = (hasExt ".cs" f) && not (isAssemblyInfo f)
         CopyDir (workDir @@ "src") project.Folder isSrc
@@ -102,10 +128,11 @@ let createNugetPackages _ =
                 Project = project.Name
                 OutputPath = nugetDir
                 WorkingDir = workDir
-                Dependencies = project.Dependencies
+                Dependencies = dependencies project
                 SymbolPackage = NugetSymbolPackage.Nuspec
-                Version = project.PackageVersion }) 
-                nugetFile
+                Version = project.PackageVersion 
+                ReleaseNotes = (List.head project.Releases).Notes |> String.concat "\n"
+            }) nugetFile
     )
 
 let publishNugetPackages _ =
