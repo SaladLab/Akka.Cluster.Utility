@@ -15,26 +15,26 @@ namespace Basic
         {
             _clusterContext = context;
 
-            Receive<ClusterActorDiscoveryMessages.ActorUp>(m => OnMessage(m));
-            Receive<ClusterActorDiscoveryMessages.ActorDown>(m => OnMessage(m));
+            Receive<ClusterActorDiscoveryMessage.ActorUp>(m => OnMessage(m));
+            Receive<ClusterActorDiscoveryMessage.ActorDown>(m => OnMessage(m));
             Receive<string>(m => OnMessage(m));
         }
 
         protected override void PreStart()
         {
             _clusterContext.ClusterActorDiscovery.Tell(
-                new ClusterActorDiscoveryMessages.MonitorActor(nameof(EchoConsumerActor)));
+                new ClusterActorDiscoveryMessage.MonitorActor(nameof(EchoConsumerActor)));
 
             _clusterContext.System.Scheduler.ScheduleTellRepeatedly(
                 TimeSpan.Zero, TimeSpan.FromSeconds(1), Self, "Echo", null);
         }
 
-        private void OnMessage(ClusterActorDiscoveryMessages.ActorUp m)
+        private void OnMessage(ClusterActorDiscoveryMessage.ActorUp m)
         {
             _consumers.Add(m.Actor);
         }
 
-        private void OnMessage(ClusterActorDiscoveryMessages.ActorDown m)
+        private void OnMessage(ClusterActorDiscoveryMessage.ActorDown m)
         {
             _consumers.Remove(m.Actor);
         }

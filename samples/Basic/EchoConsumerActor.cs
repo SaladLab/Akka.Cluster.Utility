@@ -21,7 +21,7 @@ namespace Basic
         protected override void PreStart()
         {
             _clusterContext.ClusterActorDiscovery.Tell(
-                new ClusterActorDiscoveryMessages.RegisterActor(Self, nameof(EchoConsumerActor)));
+                new ClusterActorDiscoveryMessage.RegisterActor(Self, nameof(EchoConsumerActor)));
         }
 
         private void OnMessage(string s)

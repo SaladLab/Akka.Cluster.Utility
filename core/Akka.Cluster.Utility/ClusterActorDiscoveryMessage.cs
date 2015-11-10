@@ -2,7 +2,7 @@ using Akka.Actor;
 
 namespace Akka.Cluster.Utility
 {
-    public static class ClusterActorDiscoveryMessages
+    public static class ClusterActorDiscoveryMessage
     {
         // Notify other ClusterActorDiscoveries that I'm up
         public class RegisterCluster
