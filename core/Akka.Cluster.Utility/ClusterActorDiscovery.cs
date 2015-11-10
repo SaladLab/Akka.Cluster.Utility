@@ -54,14 +54,14 @@ namespace Akka.Cluster.Utility
 
             Receive<ClusterEvent.MemberUp>(m => Handle(m));
             Receive<ClusterEvent.UnreachableMember>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.RegisterCluster>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.UnregisterCluster>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.ClusterActorUp>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.ClusterActorDown>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.RegisterActor>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.UnregisterActor>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.MonitorActor>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessages.UnmonitorActor>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.RegisterCluster>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.UnregisterCluster>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.ClusterActorUp>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.ClusterActorDown>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.RegisterActor>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.UnregisterActor>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.MonitorActor>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.UnmonitorActor>(m => Handle(m));
             Receive<Terminated>(m => Handle(m));
         }
 
@@ -92,12 +92,12 @@ namespace Akka.Cluster.Utility
                 {
                     var remoteDiscoveryActor = Context.ActorSelection(m.Member.Address + "/user/" + _name);
                     remoteDiscoveryActor.Tell(
-                        new ClusterActorDiscoveryMessages.RegisterCluster(_cluster.SelfUniqueAddress));
+                        new ClusterActorDiscoveryMessage.RegisterCluster(_cluster.SelfUniqueAddress));
 
                     // Notify my actors up to registered node
 
                     foreach (var a in _actorItems)
-                        remoteDiscoveryActor.Tell(new ClusterActorDiscoveryMessages.ClusterActorUp(a.Actor, a.Tag), Self);
+                        remoteDiscoveryActor.Tell(new ClusterActorDiscoveryMessage.ClusterActorUp(a.Actor, a.Tag), Self);
                 }
             }
         }
@@ -111,7 +111,7 @@ namespace Akka.Cluster.Utility
                 RemoveNode(item.Key);
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.RegisterCluster m)
+        private void Handle(ClusterActorDiscoveryMessage.RegisterCluster m)
         {
             _log.Info($"RegisterCluster: Address={m.ClusterAddress}");
 
@@ -131,7 +131,7 @@ namespace Akka.Cluster.Utility
             });
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.UnregisterCluster m)
+        private void Handle(ClusterActorDiscoveryMessage.UnregisterCluster m)
         {
             _log.Info($"UnregisterCluster: Address={m.ClusterAddress}");
 
@@ -152,7 +152,7 @@ namespace Akka.Cluster.Utility
                 NotifyActorDownToMonitor(actorItem.Actor, actorItem.Tag);
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.ClusterActorUp m)
+        private void Handle(ClusterActorDiscoveryMessage.ClusterActorUp m)
         {
             _log.Debug($"ClusterActorUp: Address={m.Actor.Path} Tag={m.Tag}");
 
@@ -167,7 +167,7 @@ namespace Akka.Cluster.Utility
             NotifyActorUpToMonitor(m.Actor, m.Tag);
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.ClusterActorDown m)
+        private void Handle(ClusterActorDiscoveryMessage.ClusterActorDown m)
         {
             _log.Debug($"ClusterActorDown: Address={m.Actor.Path}");
 
@@ -193,7 +193,7 @@ namespace Akka.Cluster.Utility
             NotifyActorDownToMonitor(m.Actor, tag);
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.RegisterActor m)
+        private void Handle(ClusterActorDiscoveryMessage.RegisterActor m)
         {
             _log.Debug($"RegisterActor: Actor={m.Actor.Path} Tag={m.Tag}");
 
@@ -213,10 +213,10 @@ namespace Akka.Cluster.Utility
 
             NotifyActorUpToMonitor(m.Actor, m.Tag);
             foreach (var discoveryActor in _nodeMap.Keys)
-                discoveryActor.Tell(new ClusterActorDiscoveryMessages.ClusterActorUp(m.Actor, m.Tag));
+                discoveryActor.Tell(new ClusterActorDiscoveryMessage.ClusterActorUp(m.Actor, m.Tag));
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.UnregisterActor m)
+        private void Handle(ClusterActorDiscoveryMessage.UnregisterActor m)
         {
             _log.Debug($"UnregisterActor: Actor={m.Actor.Path}");
 
@@ -234,10 +234,10 @@ namespace Akka.Cluster.Utility
 
             NotifyActorDownToMonitor(m.Actor, tag);
             foreach (var discoveryActor in _nodeMap.Keys)
-                discoveryActor.Tell(new ClusterActorDiscoveryMessages.ClusterActorDown(m.Actor));
+                discoveryActor.Tell(new ClusterActorDiscoveryMessage.ClusterActorDown(m.Actor));
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.MonitorActor m)
+        private void Handle(ClusterActorDiscoveryMessage.MonitorActor m)
         {
             _log.Debug($"MonitorActor: Monitor={Sender.Path} Tag={m.Tag}");
 
@@ -247,16 +247,16 @@ namespace Akka.Cluster.Utility
             // Send actor up message to just registered monitor
 
             foreach (var actor in _actorItems.Where(a => a.Tag == m.Tag))
-                Sender.Tell(new ClusterActorDiscoveryMessages.ActorUp(actor.Actor, actor.Tag));
+                Sender.Tell(new ClusterActorDiscoveryMessage.ActorUp(actor.Actor, actor.Tag));
 
             foreach (var node in _nodeMap.Values)
             {
                 foreach (var actor in node.ActorItems.Where(a => a.Tag == m.Tag))
-                    Sender.Tell(new ClusterActorDiscoveryMessages.ActorUp(actor.Actor, actor.Tag));
+                    Sender.Tell(new ClusterActorDiscoveryMessage.ActorUp(actor.Actor, actor.Tag));
             }
         }
 
-        private void Handle(ClusterActorDiscoveryMessages.UnmonitorActor m)
+        private void Handle(ClusterActorDiscoveryMessage.UnmonitorActor m)
         {
             _log.Debug($"UnmonitorActor: Monitor={Sender.Path} Tag={m.Tag}");
 
@@ -290,7 +290,7 @@ namespace Akka.Cluster.Utility
 
                     NotifyActorDownToMonitor(m.ActorRef, tag);
                     foreach (var discoveryActor in _nodeMap.Keys)
-                        discoveryActor.Tell(new ClusterActorDiscoveryMessages.ClusterActorDown(m.ActorRef));
+                        discoveryActor.Tell(new ClusterActorDiscoveryMessage.ClusterActorDown(m.ActorRef));
                 }
             }
         }
@@ -298,13 +298,13 @@ namespace Akka.Cluster.Utility
         private void NotifyActorUpToMonitor(IActorRef actor, string tag)
         {
             foreach (var monitor in _monitorItems.Where(w => w.Tag == tag))
-                monitor.Actor.Tell(new ClusterActorDiscoveryMessages.ActorUp(actor, tag));
+                monitor.Actor.Tell(new ClusterActorDiscoveryMessage.ActorUp(actor, tag));
         }
 
         private void NotifyActorDownToMonitor(IActorRef actor, string tag)
         {
             foreach (var monitor in _monitorItems.Where(w => w.Tag == tag))
-                monitor.Actor.Tell(new ClusterActorDiscoveryMessages.ActorDown(actor, tag));
+                monitor.Actor.Tell(new ClusterActorDiscoveryMessage.ActorDown(actor, tag));
         }
 
         private void WatchActor(IActorRef actor, int channel)
