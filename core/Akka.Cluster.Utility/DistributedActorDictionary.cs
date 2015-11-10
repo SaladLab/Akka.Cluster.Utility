@@ -4,6 +4,9 @@ using Akka.Actor;
 
 namespace Akka.Cluster.Utility
 {
+    // TODO: LOG (INFO,ERROR)
+    // TODO: RequestId for disconnecting from center
+    
     public class DistributedActorDictionary : ReceiveActor
     {
         private readonly string _name;
@@ -16,13 +19,18 @@ namespace Akka.Cluster.Utility
             _name = name;
             _clusterActorDiscovery = clusterActorDiscovery;
 
-            // GetOrCreate
-            // Create
-            // Get
-            // Add
-            // Remove
+            Receive<ClusterActorDiscoveryMessage.ActorUp>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.ActorDown>(m => Handle(m));
 
             Receive<DistributedActorDictionaryMessage.Add>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Center.AddReply>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Remove>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Center.RemoveReply>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Get>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Center.GetReply>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Create>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Center.Create>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Center.CreateReply>(m => Handle(m));
         }
 
         protected override void PreStart()
@@ -30,6 +38,8 @@ namespace Akka.Cluster.Utility
             _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.RegisterActor(Self, _name), Self);
             _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.MonitorActor(_name + "Center"), Self);
         }
+
+        // ClusterActorDiscoveryMessage Message
 
         private void Handle(ClusterActorDiscoveryMessage.ActorUp m)
         {
@@ -47,21 +57,64 @@ namespace Akka.Cluster.Utility
 
         // DistributedActorDictionaryMessage Messages
 
-        private void Handle(DistributedActorDictionaryMessage.Create m)
-        {
-            // TODO: Send Center
-        }
-
         private void Handle(DistributedActorDictionaryMessage.Add m)
         {
-            // CHECK HERE
-            // TODO: Send Center
+            if (_center == null)
+            {
+                Sender.Tell(new DistributedActorDictionaryMessage.AddReply(m.Id, m.Actor, false));
+                return;
+            }
+
+            _center.Tell(new DistributedActorDictionaryMessage.Center.Add(Sender, m.Id, m.Actor));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Center.AddReply m)
+        {
+            if (m.Added)
+            {
+                try
+                {
+                    _localActorMap.Add(m.Id, m.Actor);
+                }
+                catch (Exception e)
+                {
+                    // TODO: Write log
+                }
+                m.Requester.Tell(new DistributedActorDictionaryMessage.AddReply(m.Id, m.Actor, true));
+            }
+            else
+            {
+                m.Requester.Tell(new DistributedActorDictionaryMessage.AddReply(m.Id, m.Actor, false));
+            }
         }
 
         private void Handle(DistributedActorDictionaryMessage.Remove m)
         {
-            // CHECK HERE
-            // TODO: Send Center
+            if (_center == null)
+            {
+                // TODO: We need to pend all remove requests?
+                return;
+            }
+
+            _center.Tell(new DistributedActorDictionaryMessage.Center.Remove(m.Id));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Center.RemoveReply m)
+        {
+            if (m.Removed)
+            {
+                try
+                {
+                    if (_localActorMap.Remove(m.Id) == false)
+                    {
+                        // TODO: Write log for already removed ?
+                    }
+                }
+                catch (Exception e)
+                {
+                    // TODO: Write log
+                }
+            }
         }
 
         private void Handle(DistributedActorDictionaryMessage.Get m)
@@ -83,7 +136,54 @@ namespace Akka.Cluster.Utility
                 return;
             }
 
-            _center.Tell(new DistributedActorDictionaryMessage.Get(m.Id), Sender);
+            _center.Tell(new DistributedActorDictionaryMessage.Center.Get(Sender, m.Id));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Center.GetReply m)
+        {
+            // NOTE: If we need caching the result, this place is first area to be considered.
+
+            m.Requester.Tell(new DistributedActorDictionaryMessage.GetReply(m.Id, m.Actor));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Create m)
+        {
+            if (_center == null)
+            {
+                Sender.Tell(new DistributedActorDictionaryMessage.CreateReply(m.Id, null));
+                return;
+            }
+
+            _center.Tell(new DistributedActorDictionaryMessage.Center.Create(Sender, m.Id, m.ActorProps));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Center.Create m)
+        {
+            if (_center == null)
+                return;
+
+            var actor = Context.ActorOf(m.ActorProps, m.Id.ToString());
+            _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, actor));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Center.CreateReply m)
+        {
+            if (m.Actor != null)
+            {
+                try
+                {
+                    _localActorMap.Add(m.Id, m.Actor);
+                }
+                catch (Exception e)
+                {
+                    // TODO: Write log
+                }
+                m.Requester.Tell(new DistributedActorDictionaryMessage.CreateReply(m.Id, m.Actor));
+            }
+            else
+            {
+                m.Requester.Tell(new DistributedActorDictionaryMessage.CreateReply(m.Id, null));
+            }
         }
     }
 }

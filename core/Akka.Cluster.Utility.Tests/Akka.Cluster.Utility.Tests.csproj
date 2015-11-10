@@ -103,6 +103,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="ClusterActorDiscoveryTest.cs" />
+    <Compile Include="DistributedActorDictionaryTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
