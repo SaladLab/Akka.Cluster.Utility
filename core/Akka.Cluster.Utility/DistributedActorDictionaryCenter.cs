@@ -48,8 +48,8 @@ namespace Akka.Cluster.Utility
         {
             _log.Info($"DistributedActorDictionaryCenter({_name}) Start");
 
-            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.RegisterActor(Self, _name + "Center"), Self);
-            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.MonitorActor(_name), Self);
+            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.RegisterActor(Self, _name + "Center"));
+            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.MonitorActor(_name));
         }
 
         private IActorRef DecideWorkNode()
@@ -98,7 +98,7 @@ namespace Akka.Cluster.Utility
                 added = false;
             }
 
-            Sender.Tell(new DistributedActorDictionaryMessage.Center.AddReply(m, added));
+            Sender.Tell(new DistributedActorDictionaryMessage.Center.AddReply(m.Requester, m.Id, m.Actor, added));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.Remove m)
@@ -107,14 +107,14 @@ namespace Akka.Cluster.Utility
 
             var removed = _globalActorMap.Remove(m.Id);
 
-            Sender.Tell(new DistributedActorDictionaryMessage.Center.RemoveReply(m, removed));
+            Sender.Tell(new DistributedActorDictionaryMessage.Center.RemoveReply(m.Id, removed));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.Get m)
         {
             IActorRef actor;
             _globalActorMap.TryGetValue(m.Id, out actor);
-            Sender.Tell(new DistributedActorDictionaryMessage.Center.GetReply(m, actor));
+            Sender.Tell(new DistributedActorDictionaryMessage.Center.GetReply(m.Requester, m.Id, actor));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.Create m)
@@ -126,7 +126,7 @@ namespace Akka.Cluster.Utility
             {
                 if (_globalActorMap.ContainsKey(m.Id))
                 {
-                    Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, null));
+                    Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, null));
                     return;
                 }
                 id = m.Id;
@@ -137,7 +137,7 @@ namespace Akka.Cluster.Utility
                 {
                     // TODO: Write error log
 
-                    Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, null));
+                    Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, null));
                     return;
                 }
 
@@ -146,7 +146,7 @@ namespace Akka.Cluster.Utility
                 {
                     // TODO: Write error log
 
-                    Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, null));
+                    Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, null));
                     return;
                 }
             }
@@ -156,7 +156,7 @@ namespace Akka.Cluster.Utility
             var workNode = DecideWorkNode();
             if (workNode == null)
             {
-                Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, null));
+                Sender.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, null));
                 return;
             }
 
@@ -197,7 +197,7 @@ namespace Akka.Cluster.Utility
             IActorRef actor;
             if (_globalActorMap.TryGetValue(m.Id, out actor))
             {
-                Sender.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m, m.Id, actor, false));
+                Sender.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m.Requester, m.Id, actor, false));
                 return;
             }
 
@@ -206,7 +206,7 @@ namespace Akka.Cluster.Utility
             var workNode = DecideWorkNode();
             if (workNode == null)
             {
-                Sender.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m, m.Id, null, false));
+                Sender.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m.Requester, m.Id, null, false));
                 return;
             }
 
@@ -243,7 +243,7 @@ namespace Akka.Cluster.Utility
         private void Handle(DistributedActorDictionaryMessage.Center.GetIds m)
         {
             Sender.Tell(new DistributedActorDictionaryMessage.Center.GetIdsReply(
-                m, _globalActorMap.Keys.ToArray()));
+                m.Requester, _globalActorMap.Keys.ToArray()));
         }
     }
 }

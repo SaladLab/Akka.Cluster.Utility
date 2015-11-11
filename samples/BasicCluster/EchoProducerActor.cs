@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Akka.Actor;
 using Akka.Cluster.Utility;
 
-namespace Basic
+namespace BasicCluster
 {
     internal class EchoProducerActor : ReceiveActor
     {

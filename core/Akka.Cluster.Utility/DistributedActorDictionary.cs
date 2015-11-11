@@ -58,8 +58,8 @@ namespace Akka.Cluster.Utility
         {
             _log.Info($"DistributedActorDictionary({_name}) Start");
 
-            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.RegisterActor(Self, _name), Self);
-            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.MonitorActor(_name + "Center"), Self);
+            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.RegisterActor(Self, _name));
+            _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.MonitorActor(_name + "Center"));
         }
 
         // ClusterActorDiscoveryMessage Message
@@ -201,12 +201,22 @@ namespace Akka.Cluster.Utility
 
             if (_actorFactory == null)
             {
-                // TODO: Write error
-                _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, null));
+                _log.Error($"Cannot create actor without actor factory. (Id={m.Id} Args={m.Args})");
+                _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, null));
                 return;
             }
 
-            var actor = _actorFactory.CreateActor(Context, m.Id, m.Args);
+            IActorRef actor;
+            try
+            {
+                actor = _actorFactory.CreateActor(Context, m.Id, m.Args);
+            }
+            catch (Exception e)
+            {
+                _log.Error(e, $"Cannot create actor. (Id={m.Id} Args={m.Args})");
+                _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, null));
+                return;
+            }
 
             try
             {
@@ -214,10 +224,12 @@ namespace Akka.Cluster.Utility
             }
             catch (Exception e)
             {
-                // TODO: Write log
+                _log.Error(e, $"Cannot add created actor. (Id={m.Id} Args={m.Args})");
+                _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, null));
+                return;
             }
 
-            _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, actor));
+            _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m.Requester, m.Id, actor));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.CreateReply m)
@@ -255,7 +267,7 @@ namespace Akka.Cluster.Utility
             if (_actorFactory == null)
             {
                 // TODO: Write error
-                _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m, m.Id, null, false));
+                _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m.Requester, m.Id, null, false));
                 return;
             }
 
@@ -270,7 +282,7 @@ namespace Akka.Cluster.Utility
                 // TODO: Write log
             }
 
-            _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m, m.Id, actor, true));
+            _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m.Requester, m.Id, actor, true));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.GetOrCreateReply m)

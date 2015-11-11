@@ -11,7 +11,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{CC11
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Cluster.Utility.Tests", "core\Akka.Cluster.Utility.Tests\Akka.Cluster.Utility.Tests.csproj", "{2E3DF5C2-8A38-4A03-86D7-8D463C917E47}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic", "samples\Basic\Basic.csproj", "{13F66366-7F59-41F7-B8F0-B78A68F2BBD0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicCluster", "samples\BasicCluster\BasicCluster.csproj", "{13F66366-7F59-41F7-B8F0-B78A68F2BBD0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicDistributedActor", "samples\BasicDistributedActor\BasicDistributedActor.csproj", "{C07AA85D-3282-46B6-AA71-CD5CA9C83B8B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +33,10 @@ Global
 		{13F66366-7F59-41F7-B8F0-B78A68F2BBD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13F66366-7F59-41F7-B8F0-B78A68F2BBD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{13F66366-7F59-41F7-B8F0-B78A68F2BBD0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C07AA85D-3282-46B6-AA71-CD5CA9C83B8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C07AA85D-3282-46B6-AA71-CD5CA9C83B8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C07AA85D-3282-46B6-AA71-CD5CA9C83B8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C07AA85D-3282-46B6-AA71-CD5CA9C83B8B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -39,5 +45,6 @@ Global
 		{3148302C-865F-48AE-A367-E89B178E564B} = {FA92F380-D88E-4977-AF58-A7103A4DB26B}
 		{2E3DF5C2-8A38-4A03-86D7-8D463C917E47} = {FA92F380-D88E-4977-AF58-A7103A4DB26B}
 		{13F66366-7F59-41F7-B8F0-B78A68F2BBD0} = {CC1138B1-2EC2-4999-A0CA-87A8557A363F}
+		{C07AA85D-3282-46B6-AA71-CD5CA9C83B8B} = {CC1138B1-2EC2-4999-A0CA-87A8557A363F}
 	EndGlobalSection
 EndGlobal

@@ -8,7 +8,7 @@ using Akka.Cluster;
 using Akka.Cluster.Utility;
 using Akka.Configuration;
 
-namespace Basic
+namespace BasicCluster
 {
     class Program
     {

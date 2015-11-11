@@ -1,6 +1,6 @@
 ﻿using Akka.Actor;
 
-namespace Basic
+namespace BasicDistributedActor
 {
     internal class ClusterNodeContext
     {

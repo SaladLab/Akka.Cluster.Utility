@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Akka.Cluster.Utility.Tests")]
+[assembly: AssemblyTitle("BasicDistributedActor")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Saladbowl Creative")]
-[assembly: AssemblyProduct("Akka.Cluster.Utility.Tests")]
+[assembly: AssemblyProduct("BasicDistributedActor")]
 [assembly: AssemblyCopyright("Copyright © Saladbowl Creative 2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("9abbd6a9-5f95-442a-88db-3fc1ebf374a7")]
+[assembly: Guid("c07aa85d-3282-46b6-aa71-cd5ca9c83b8b")]
 
 // Version information for an assembly consists of the following four values:
 //

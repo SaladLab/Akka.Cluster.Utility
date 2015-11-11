@@ -3,7 +3,7 @@ using Akka.Actor;
 using Akka.Cluster;
 using Akka.Cluster.Utility;
 
-namespace Basic
+namespace BasicCluster
 {
     internal class EchoConsumerActor : ReceiveActor
     {

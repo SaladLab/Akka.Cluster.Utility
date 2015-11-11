@@ -151,11 +151,6 @@ namespace Akka.Cluster.Utility
                 {
                     Requester = requester;
                 }
-
-                public Base(Base requestMessage)
-                {
-                    Requester = requestMessage.Requester;
-                }
             }
 
             public class Add : Base
@@ -177,11 +172,11 @@ namespace Akka.Cluster.Utility
                 public IActorRef Actor { get; }
                 public bool Added { get; }
 
-                public AddReply(Add requestMessage, bool added)
-                    : base(requestMessage)
+                public AddReply(IActorRef requester, object id, IActorRef actor, bool added)
+                    : base(requester)
                 {
-                    Id = requestMessage.Id;
-                    Actor = requestMessage.Actor;
+                    Id = id;
+                    Actor = actor;
                     Added = added;
                 }
             }
@@ -201,9 +196,9 @@ namespace Akka.Cluster.Utility
                 public object Id { get; }
                 public bool Removed { get; }
 
-                public RemoveReply(Remove requestMessage, bool removed)
+                public RemoveReply(object id, bool removed)
                 {
-                    Id = requestMessage.Id;
+                    Id = id;
                     Removed = removed;
                 }
             }
@@ -224,10 +219,10 @@ namespace Akka.Cluster.Utility
                 public object Id { get; }
                 public IActorRef Actor { get; }
 
-                public GetReply(Get requestMessage, IActorRef actor)
-                    : base(requestMessage)
+                public GetReply(IActorRef requester, object id, IActorRef actor)
+                    : base(requester)
                 {
-                    Id = requestMessage.Id;
+                    Id = id;
                     Actor = actor;
                 }
             }
@@ -250,8 +245,8 @@ namespace Akka.Cluster.Utility
                 public object Id { get; }
                 public IActorRef Actor { get; }
 
-                public CreateReply(Create requestMessage, object id, IActorRef actor)
-                    : base(requestMessage)
+                public CreateReply(IActorRef requester, object id, IActorRef actor)
+                    : base(requester)
                 {
                     Id = id;
                     Actor = actor;
@@ -277,8 +272,8 @@ namespace Akka.Cluster.Utility
                 public IActorRef Actor { get; }
                 public bool Created { get; }
 
-                public GetOrCreateReply(GetOrCreate requestMessage, object id, IActorRef actor, bool created)
-                    : base(requestMessage)
+                public GetOrCreateReply(IActorRef requester, object id, IActorRef actor, bool created)
+                    : base(requester)
                 {
                     Id = id;
                     Actor = actor;
@@ -298,8 +293,8 @@ namespace Akka.Cluster.Utility
             {
                 public object[] Ids;
 
-                public GetIdsReply(GetIds requestMessage, object[] ids)
-                    : base(requestMessage)
+                public GetIdsReply(IActorRef requester, object[] ids)
+                    : base(requester)
                 {
                     Ids = ids;
                 }
