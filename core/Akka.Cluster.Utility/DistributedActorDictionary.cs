@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Akka.Actor;
+using Akka.Event;
 
 namespace Akka.Cluster.Utility
 {
@@ -11,8 +12,9 @@ namespace Akka.Cluster.Utility
     public class DistributedActorDictionary : ReceiveActor
     {
         private readonly string _name;
-        private readonly IActorFactory _actorFactory;
         private readonly IActorRef _clusterActorDiscovery;
+        private readonly IActorFactory _actorFactory;
+        private readonly ILoggingAdapter _log;
         private IActorRef _center;
         private Dictionary<object, IActorRef> _localActorMap = new Dictionary<object, IActorRef>();
         private bool _isShuttingDown;
@@ -22,6 +24,7 @@ namespace Akka.Cluster.Utility
         {
             _name = name;
             _clusterActorDiscovery = clusterActorDiscovery;
+            _log = Context.GetLogger();
 
             if (actorFactoryType != null)
             {
@@ -53,6 +56,8 @@ namespace Akka.Cluster.Utility
 
         protected override void PreStart()
         {
+            _log.Info($"DistributedActorDictionary({_name}) Start");
+
             _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.RegisterActor(Self, _name), Self);
             _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.MonitorActor(_name + "Center"), Self);
         }
@@ -61,16 +66,25 @@ namespace Akka.Cluster.Utility
 
         private void Handle(ClusterActorDiscoveryMessage.ActorUp m)
         {
+            _log.Info($"Center ActorUp (Actor={m.Actor.Path})");
+
             if (_center != null)
+            {
+                _log.Info($"But I already have center. (Actor={_center.Path})");
                 return;
+            }
 
             _center = m.Actor;
         }
 
         private void Handle(ClusterActorDiscoveryMessage.ActorDown m)
         {
+            _log.Info($"Center ActorDown (Actor={m.Actor.Path})");
+
             if (_center.Equals(m.Actor))
                 _center = null;
+            else
+                _log.Info($"But I had a different center. (Actor={_center.Path})");
         }
 
         // DistributedActorDictionaryMessage Messages
@@ -280,7 +294,7 @@ namespace Akka.Cluster.Utility
             if (_isShuttingDown)
                 return;
 
-            // _logger.Info("Stop");
+            _log.Info($"DistributedActorDictionary({_name}) starts to shutdown.");
             _isShuttingDown = true;
 
             // stop all running client sessions

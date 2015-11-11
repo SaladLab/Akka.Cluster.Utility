@@ -2,15 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using Akka.Actor;
+using Akka.Event;
 
 namespace Akka.Cluster.Utility
 {
     public class DistributedActorDictionaryCenter : ReceiveActor
     {
         private readonly string _name;
-        private readonly IIdGenerator _idGenerator;
         private readonly IActorRef _clusterActorDiscovery;
-        
+        private readonly IIdGenerator _idGenerator;
+        private readonly ILoggingAdapter _log;
+
         private int _lastWorkNodeIndex = -1;
 
         private readonly List<IActorRef> _nodes = new List<IActorRef>();
@@ -21,6 +23,7 @@ namespace Akka.Cluster.Utility
         {
             _name = name;
             _clusterActorDiscovery = clusterActorDiscovery;
+            _log = Context.GetLogger();
 
             if (idGeneratorType != null)
             {
@@ -43,6 +46,8 @@ namespace Akka.Cluster.Utility
 
         protected override void PreStart()
         {
+            _log.Info($"DistributedActorDictionaryCenter({_name}) Start");
+
             _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.RegisterActor(Self, _name + "Center"), Self);
             _clusterActorDiscovery.Tell(new ClusterActorDiscoveryMessage.MonitorActor(_name), Self);
         }
@@ -64,12 +69,16 @@ namespace Akka.Cluster.Utility
 
         private void Handle(ClusterActorDiscoveryMessage.ActorUp m)
         {
+            _log.Info($"Node ActorUp (Actor={m.Actor.Path})");
+
             // TODO: Register Local
             _nodes.Add(m.Actor);
         }
 
         private void Handle(ClusterActorDiscoveryMessage.ActorDown m)
         {
+            _log.Info($"Node ActorDown (Actor={m.Actor.Path})");
+
             // TODO: Unregister Local
             _nodes.Remove(m.Actor);
         }
