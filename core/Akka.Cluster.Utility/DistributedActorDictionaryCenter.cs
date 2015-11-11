@@ -16,13 +16,17 @@ namespace Akka.Cluster.Utility
         private readonly List<IActorRef> _nodes = new List<IActorRef>();
         private Dictionary<object, IActorRef> _globalActorMap = new Dictionary<object, IActorRef>();
 
-        public DistributedActorDictionaryCenter(string name, Type idGeneratorType, IActorRef clusterActorDiscovery)
+        public DistributedActorDictionaryCenter(string name, IActorRef clusterActorDiscovery,
+                                                Type idGeneratorType, object[] idGeneratorInitializeArgs)
         {
             _name = name;
             _clusterActorDiscovery = clusterActorDiscovery;
 
             if (idGeneratorType != null)
+            {
                 _idGenerator = (IIdGenerator)Activator.CreateInstance(idGeneratorType);
+                _idGenerator.Initialize(idGeneratorInitializeArgs);
+            }
 
             Receive<ClusterActorDiscoveryMessage.ActorUp>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.ActorDown>(m => Handle(m));
@@ -150,7 +154,7 @@ namespace Akka.Cluster.Utility
             // TODO: add to creating list to handle corner-case
             //       when work node just died after sending following message
 
-            workNode.Tell(new DistributedActorDictionaryMessage.Center.Create(m.Requester, id, m.ActorProps));
+            workNode.Tell(new DistributedActorDictionaryMessage.Center.Create(m.Requester, id, m.Args));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.CreateReply m)
@@ -200,7 +204,7 @@ namespace Akka.Cluster.Utility
             // TODO: add to creating list to handle corner-case
             //       when work node just died after sending following message
 
-            workNode.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreate(m.Requester, m.Id, m.ActorProps));
+            workNode.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreate(m.Requester, m.Id, m.Args));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.GetOrCreateReply m)

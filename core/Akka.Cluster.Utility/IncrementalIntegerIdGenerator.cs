@@ -8,6 +8,12 @@ namespace Akka.Cluster.Utility
 
         public Type IdType => typeof(long);
 
+        public void Initialize(object[] args)
+        {
+            if (args != null && args.Length == 1)
+                _lastId = (long)args[0];
+        }
+
         public object GenerateId()
         {
             _lastId += 1;

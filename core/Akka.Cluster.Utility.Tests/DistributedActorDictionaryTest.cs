@@ -15,17 +15,24 @@ namespace Akka.Cluster.Utility.Tests
         {
             var name = "TestDict";
             var nullDiscovery = ActorOf(BlackHoleActor.Props);
+
             var center = ActorOfAsTestActorRef<DistributedActorDictionaryCenter>(
                 Props.Create<DistributedActorDictionaryCenter>(
-                    name, typeof(IncrementalIntegerIdGenerator), nullDiscovery), name + "Center");
+                    name, nullDiscovery, typeof(IncrementalIntegerIdGenerator), null),
+                name + "Center");
+
             var nodes = new TestActorRef<DistributedActorDictionary>[nodeCount];
             for (int i = 0; i < nodeCount; i++)
             {
                 var node = ActorOfAsTestActorRef<DistributedActorDictionary>(
-                    Props.Create<DistributedActorDictionary>(name, nullDiscovery), name + i);
-                center.Tell(new ClusterActorDiscoveryMessage.ActorUp(node, name + "Center"));
+                    Props.Create<DistributedActorDictionary>(
+                        name, nullDiscovery, typeof(CommonActorFactory<BlackHoleActor>), null),
+                    name + i);
+
                 node.Tell(new ClusterActorDiscoveryMessage.ActorUp(center, name));
                 nodes[i] = node;
+
+                center.Tell(new ClusterActorDiscoveryMessage.ActorUp(node, name + "Center"));
             }
             return Tuple.Create(center, nodes);
         }
@@ -104,7 +111,7 @@ namespace Akka.Cluster.Utility.Tests
             var actors = Setup(2);
 
             var reply = await actors.Item2[0].Ask<DistributedActorDictionaryMessage.CreateReply>(
-                new DistributedActorDictionaryMessage.Create(BlackHoleActor.Props));
+                new DistributedActorDictionaryMessage.Create(BlackHoleActor.Props.Arguments));
             Assert.Equal(1L, reply.Id);
             Assert.NotNull(reply.Actor);
 
@@ -120,7 +127,7 @@ namespace Akka.Cluster.Utility.Tests
             var actors = Setup(2);
 
             var reply = await actors.Item2[0].Ask<DistributedActorDictionaryMessage.CreateReply>(
-                new DistributedActorDictionaryMessage.Create("One", BlackHoleActor.Props));
+                new DistributedActorDictionaryMessage.Create("One", BlackHoleActor.Props.Arguments));
             Assert.Equal("One", reply.Id);
             Assert.NotNull(reply.Actor);
 
@@ -136,7 +143,7 @@ namespace Akka.Cluster.Utility.Tests
             var actors = Setup(2);
 
             var reply = await actors.Item2[0].Ask<DistributedActorDictionaryMessage.GetOrCreateReply>(
-                new DistributedActorDictionaryMessage.GetOrCreate("One", BlackHoleActor.Props));
+                new DistributedActorDictionaryMessage.GetOrCreate("One", BlackHoleActor.Props.Arguments));
             Assert.Equal("One", reply.Id);
             Assert.NotNull(reply.Actor);
             Assert.Equal(true, reply.Created);
@@ -156,7 +163,7 @@ namespace Akka.Cluster.Utility.Tests
             actors.Item2[0].Tell(new DistributedActorDictionaryMessage.Add("One", testActor));
 
             var reply = await actors.Item2[0].Ask<DistributedActorDictionaryMessage.GetOrCreateReply>(
-                new DistributedActorDictionaryMessage.GetOrCreate("One", BlackHoleActor.Props));
+                new DistributedActorDictionaryMessage.GetOrCreate("One", BlackHoleActor.Props.Arguments));
             Assert.Equal("One", reply.Id);
             Assert.NotNull(reply.Actor);
             Assert.Equal(false, reply.Created);

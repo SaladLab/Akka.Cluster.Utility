@@ -65,17 +65,17 @@ namespace Akka.Cluster.Utility
         public class Create
         {
             public object Id { get; }
-            public Props ActorProps { get; }
+            public object[] Args { get; }
 
-            public Create(Props actorProps)
+            public Create(object[] args)
             {
-                ActorProps = actorProps;
+                Args = args;
             }
 
-            public Create(object id, Props actorProps)
+            public Create(object id, object[] args)
             {
                 Id = id;
-                ActorProps = actorProps;
+                Args = args;
             }
         }
 
@@ -94,12 +94,12 @@ namespace Akka.Cluster.Utility
         public class GetOrCreate
         {
             public object Id { get; }
-            public Props ActorProps { get; }
+            public object[] Args { get; }
 
-            public GetOrCreate(object id, Props actorProps)
+            public GetOrCreate(object id, object[] args)
             {
                 Id = id;
-                ActorProps = actorProps;
+                Args = args;
             }
         }
 
@@ -235,13 +235,13 @@ namespace Akka.Cluster.Utility
             public class Create : Base
             {
                 public object Id { get; }
-                public Props ActorProps { get; }
+                public object[] Args { get; }
 
-                public Create(IActorRef requester, object id, Props actorProps)
+                public Create(IActorRef requester, object id, object[] args)
                     : base(requester)
                 {
                     Id = id;
-                    ActorProps = actorProps;
+                    Args = args;
                 }
             }
 
@@ -261,13 +261,13 @@ namespace Akka.Cluster.Utility
             public class GetOrCreate : Base
             {
                 public object Id { get; }
-                public Props ActorProps { get; }
+                public object[] Args { get; }
 
-                public GetOrCreate(IActorRef requester, object id, Props actorProps)
+                public GetOrCreate(IActorRef requester, object id, object[] args)
                     : base(requester)
                 {
                     Id = id;
-                    ActorProps = actorProps;
+                    Args = args;
                 }
             }
 

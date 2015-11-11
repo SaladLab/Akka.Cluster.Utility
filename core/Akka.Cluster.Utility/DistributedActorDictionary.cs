@@ -11,15 +11,23 @@ namespace Akka.Cluster.Utility
     public class DistributedActorDictionary : ReceiveActor
     {
         private readonly string _name;
+        private readonly IActorFactory _actorFactory;
         private readonly IActorRef _clusterActorDiscovery;
         private IActorRef _center;
         private Dictionary<object, IActorRef> _localActorMap = new Dictionary<object, IActorRef>();
         private bool _isShuttingDown;
 
-        public DistributedActorDictionary(string name, IActorRef clusterActorDiscovery)
+        public DistributedActorDictionary(string name, IActorRef clusterActorDiscovery,
+                                          Type actorFactoryType, object[] actorFactoryInitalizeArgs)
         {
             _name = name;
             _clusterActorDiscovery = clusterActorDiscovery;
+
+            if (actorFactoryType != null)
+            {
+                _actorFactory = (IActorFactory)Activator.CreateInstance(actorFactoryType);
+                _actorFactory.Initialize(actorFactoryInitalizeArgs);
+            }
 
             Receive<ClusterActorDiscoveryMessage.ActorUp>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.ActorDown>(m => Handle(m));
@@ -169,7 +177,7 @@ namespace Akka.Cluster.Utility
                 return;
             }
 
-            _center.Tell(new DistributedActorDictionaryMessage.Center.Create(Sender, m.Id, m.ActorProps));
+            _center.Tell(new DistributedActorDictionaryMessage.Center.Create(Sender, m.Id, m.Args));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.Create m)
@@ -177,7 +185,14 @@ namespace Akka.Cluster.Utility
             if (_center == null)
                 return;
 
-            var actor = Context.ActorOf(m.ActorProps, m.Id.ToString());
+            if (_actorFactory == null)
+            {
+                // TODO: Write error
+                _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, null));
+                return;
+            }
+
+            var actor = _actorFactory.CreateActor(Context, m.Args);
 
             try
             {
@@ -215,7 +230,7 @@ namespace Akka.Cluster.Utility
                 return;
             }
 
-            _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreate(Sender, m.Id, m.ActorProps));
+            _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreate(Sender, m.Id, m.Args));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.GetOrCreate m)
@@ -223,7 +238,14 @@ namespace Akka.Cluster.Utility
             if (_center == null)
                 return;
 
-            var actor = Context.ActorOf(m.ActorProps, m.Id.ToString());
+            if (_actorFactory == null)
+            {
+                // TODO: Write error
+                _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m, m.Id, null, false));
+                return;
+            }
+
+            var actor = _actorFactory.CreateActor(Context, m.Args);
 
             try
             {
