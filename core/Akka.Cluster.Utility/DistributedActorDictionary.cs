@@ -6,13 +6,15 @@ namespace Akka.Cluster.Utility
 {
     // TODO: LOG (INFO,ERROR)
     // TODO: RequestId for disconnecting from center
-    
+    // TODO: Watching & Shutdown
+        
     public class DistributedActorDictionary : ReceiveActor
     {
         private readonly string _name;
         private readonly IActorRef _clusterActorDiscovery;
         private IActorRef _center;
         private Dictionary<object, IActorRef> _localActorMap = new Dictionary<object, IActorRef>();
+        private bool _isShuttingDown;
 
         public DistributedActorDictionary(string name, IActorRef clusterActorDiscovery)
         {
@@ -22,6 +24,7 @@ namespace Akka.Cluster.Utility
             Receive<ClusterActorDiscoveryMessage.ActorUp>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.ActorDown>(m => Handle(m));
 
+            Receive<DistributedActorDictionaryMessage.Center.GetIdsReply>(m => Handle(m));
             Receive<DistributedActorDictionaryMessage.Add>(m => Handle(m));
             Receive<DistributedActorDictionaryMessage.Center.AddReply>(m => Handle(m));
             Receive<DistributedActorDictionaryMessage.Remove>(m => Handle(m));
@@ -31,6 +34,13 @@ namespace Akka.Cluster.Utility
             Receive<DistributedActorDictionaryMessage.Create>(m => Handle(m));
             Receive<DistributedActorDictionaryMessage.Center.Create>(m => Handle(m));
             Receive<DistributedActorDictionaryMessage.Center.CreateReply>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.GetOrCreate>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Center.GetOrCreate>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.Center.GetOrCreateReply>(m => Handle(m));
+            Receive<DistributedActorDictionaryMessage.GetIds>(m => Handle(m));
+
+            Receive<DistributedActorDictionaryMessage.ShutdownNode>(m => Handle(m));
+            Receive<Terminated>(m => Handle(m));
         }
 
         protected override void PreStart()
@@ -56,6 +66,11 @@ namespace Akka.Cluster.Utility
         }
 
         // DistributedActorDictionaryMessage Messages
+
+        private void Handle(DistributedActorDictionaryMessage.Center.GetIdsReply m)
+        {
+            m.Requester.Tell(new DistributedActorDictionaryMessage.GetIdsReply(m.Ids));
+        }
 
         private void Handle(DistributedActorDictionaryMessage.Add m)
         {
@@ -163,27 +178,106 @@ namespace Akka.Cluster.Utility
                 return;
 
             var actor = Context.ActorOf(m.ActorProps, m.Id.ToString());
+
+            try
+            {
+                _localActorMap.Add(m.Id, actor);
+            }
+            catch (Exception e)
+            {
+                // TODO: Write log
+            }
+
             _center.Tell(new DistributedActorDictionaryMessage.Center.CreateReply(m, m.Id, actor));
         }
 
         private void Handle(DistributedActorDictionaryMessage.Center.CreateReply m)
         {
-            if (m.Actor != null)
+            m.Requester.Tell(new DistributedActorDictionaryMessage.CreateReply(m.Id, m.Actor));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.GetOrCreate m)
+        {
+            // Find actor in local map
+
+            IActorRef actor;
+            if (_localActorMap.TryGetValue(m.Id, out actor))
             {
-                try
-                {
-                    _localActorMap.Add(m.Id, m.Actor);
-                }
-                catch (Exception e)
-                {
-                    // TODO: Write log
-                }
-                m.Requester.Tell(new DistributedActorDictionaryMessage.CreateReply(m.Id, m.Actor));
+                Sender.Tell(new DistributedActorDictionaryMessage.GetOrCreateReply(m.Id, actor, false));
+                return;
+            }
+
+            // Forward request to center
+
+            if (_center == null)
+            {
+                Sender.Tell(new DistributedActorDictionaryMessage.GetOrCreateReply(m.Id, null, false));
+                return;
+            }
+
+            _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreate(Sender, m.Id, m.ActorProps));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Center.GetOrCreate m)
+        {
+            if (_center == null)
+                return;
+
+            var actor = Context.ActorOf(m.ActorProps, m.Id.ToString());
+
+            try
+            {
+                _localActorMap.Add(m.Id, actor);
+            }
+            catch (Exception e)
+            {
+                // TODO: Write log
+            }
+
+            _center.Tell(new DistributedActorDictionaryMessage.Center.GetOrCreateReply(m, m.Id, actor, true));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.Center.GetOrCreateReply m)
+        {
+            m.Requester.Tell(new DistributedActorDictionaryMessage.GetOrCreateReply(m.Id, m.Actor, m.Created));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.GetIds m)
+        {
+            if (_center == null)
+            {
+                Sender.Tell(new DistributedActorDictionaryMessage.GetIdsReply(null));
+                return;
+            }
+
+            _center.Tell(new DistributedActorDictionaryMessage.Center.GetIds(Sender));
+        }
+
+        private void Handle(DistributedActorDictionaryMessage.ShutdownNode m)
+        {
+            if (_isShuttingDown)
+                return;
+
+            // _logger.Info("Stop");
+            _isShuttingDown = true;
+
+            // stop all running client sessions
+
+            if (_localActorMap.Count > 0)
+            {
+                Context.ActorSelection("*").Tell(m.ActorShutdownMessage);
             }
             else
             {
-                m.Requester.Tell(new DistributedActorDictionaryMessage.CreateReply(m.Id, null));
+                Context.Stop(Self);
             }
+        }
+
+        private void Handle(Terminated m)
+        {
+            //_roomActorCount -= 1;
+            //if (_isStopped && _roomActorCount == 0)
+            //    Context.Stop(Self);
         }
     }
 }

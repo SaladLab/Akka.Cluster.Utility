@@ -130,6 +130,53 @@ namespace Akka.Cluster.Utility.Tests
             Assert.Equal(reply.Actor, reply2.Actor);
         }
 
+        [Fact]
+        public async Task Test_GetOrCreate_And_Get_Succeed()
+        {
+            var actors = Setup(2);
+
+            var reply = await actors.Item2[0].Ask<DistributedActorDictionaryMessage.GetOrCreateReply>(
+                new DistributedActorDictionaryMessage.GetOrCreate("One", BlackHoleActor.Props));
+            Assert.Equal("One", reply.Id);
+            Assert.NotNull(reply.Actor);
+            Assert.Equal(true, reply.Created);
+
+            var reply2 = await actors.Item2[0].Ask<DistributedActorDictionaryMessage.GetReply>(
+                new DistributedActorDictionaryMessage.Get(reply.Id));
+            Assert.Equal(reply.Id, reply2.Id);
+            Assert.Equal(reply.Actor, reply2.Actor);
+        }
+
+        [Fact]
+        public async Task Test_AddOne_GetOrCreate_Succeed()
+        {
+            var actors = Setup(2);
+            var testActor = ActorOf(BlackHoleActor.Props);
+
+            actors.Item2[0].Tell(new DistributedActorDictionaryMessage.Add("One", testActor));
+
+            var reply = await actors.Item2[0].Ask<DistributedActorDictionaryMessage.GetOrCreateReply>(
+                new DistributedActorDictionaryMessage.GetOrCreate("One", BlackHoleActor.Props));
+            Assert.Equal("One", reply.Id);
+            Assert.NotNull(reply.Actor);
+            Assert.Equal(false, reply.Created);
+        }
+
+        [Fact]
+        public async Task Test_AddTwo_GetIds_Succeed()
+        {
+            var actors = Setup(2);
+            var testActor1 = ActorOf(BlackHoleActor.Props);
+            var testActor2 = ActorOf(BlackHoleActor.Props);
+
+            actors.Item2[0].Tell(new DistributedActorDictionaryMessage.Add("One", testActor1));
+            actors.Item2[0].Tell(new DistributedActorDictionaryMessage.Add("Two", testActor2));
+
+            var reply = await actors.Item2[1].Ask<DistributedActorDictionaryMessage.GetIdsReply>(
+                new DistributedActorDictionaryMessage.GetIds());
+            Assert.Equal(new object[] { "One", "Two" }, reply.Ids);
+        }
+
         // [Fact]
         public async Task Test_Add_And_RemoveFromOtherNode_Failed()
         {

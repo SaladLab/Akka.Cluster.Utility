@@ -4,35 +4,6 @@ namespace Akka.Cluster.Utility
 {
     public static class DistributedActorDictionaryMessage
     {
-        public class Create
-        {
-            public object Id { get; }
-            public Props ActorProps { get; }
-
-            public Create(Props actorProps)
-            {
-                ActorProps = actorProps;
-            }
-
-            public Create(object id, Props actorProps)
-            {
-                Id = id;
-                ActorProps = actorProps;
-            }
-        }
-
-        public class CreateReply
-        {
-            public object Id { get; }
-            public IActorRef Actor { get; }
-
-            public CreateReply(object id, IActorRef actor)
-            {
-                Id = id;
-                Actor = actor;
-            }
-        }
-
         public class Add
         {
             public object Id { get; }
@@ -91,6 +62,85 @@ namespace Akka.Cluster.Utility
             }
         }
 
+        public class Create
+        {
+            public object Id { get; }
+            public Props ActorProps { get; }
+
+            public Create(Props actorProps)
+            {
+                ActorProps = actorProps;
+            }
+
+            public Create(object id, Props actorProps)
+            {
+                Id = id;
+                ActorProps = actorProps;
+            }
+        }
+
+        public class CreateReply
+        {
+            public object Id { get; }
+            public IActorRef Actor { get; }
+
+            public CreateReply(object id, IActorRef actor)
+            {
+                Id = id;
+                Actor = actor;
+            }
+        }
+
+        public class GetOrCreate
+        {
+            public object Id { get; }
+            public Props ActorProps { get; }
+
+            public GetOrCreate(object id, Props actorProps)
+            {
+                Id = id;
+                ActorProps = actorProps;
+            }
+        }
+
+        public class GetOrCreateReply
+        {
+            public object Id { get; }
+            public IActorRef Actor { get; }
+            public bool Created { get; }
+
+            public GetOrCreateReply(object id, IActorRef actor, bool created)
+            {
+                Id = id;
+                Actor = actor;
+                Created = created;
+            }
+        }
+
+        public class GetIds
+        {
+        }
+
+        public class GetIdsReply
+        {
+            public object[] Ids;
+
+            public GetIdsReply(object[] ids)
+            {
+                Ids = ids;
+            }
+        }
+
+        public class ShutdownNode
+        {
+            public object ActorShutdownMessage;
+
+            public ShutdownNode(object actorShutdownMessage)
+            {
+                ActorShutdownMessage = actorShutdownMessage;
+            }
+        }
+
         internal static class Center
         {
             public class Base
@@ -105,32 +155,6 @@ namespace Akka.Cluster.Utility
                 public Base(Base requestMessage)
                 {
                     Requester = requestMessage.Requester;
-                }
-            }
-
-            public class Create : Base
-            {
-                public object Id { get; }
-                public Props ActorProps { get; }
-
-                public Create(IActorRef requester, object id, Props actorProps)
-                    : base(requester)
-                {
-                    Id = id;
-                    ActorProps = actorProps;
-                }
-            }
-
-            public class CreateReply : Base
-            {
-                public object Id { get; }
-                public IActorRef Actor { get; }
-
-                public CreateReply(Create requestMessage, object id, IActorRef actor)
-                    : base(requestMessage)
-                {
-                    Id = id;
-                    Actor = actor;
                 }
             }
 
@@ -205,6 +229,79 @@ namespace Akka.Cluster.Utility
                 {
                     Id = requestMessage.Id;
                     Actor = actor;
+                }
+            }
+
+            public class Create : Base
+            {
+                public object Id { get; }
+                public Props ActorProps { get; }
+
+                public Create(IActorRef requester, object id, Props actorProps)
+                    : base(requester)
+                {
+                    Id = id;
+                    ActorProps = actorProps;
+                }
+            }
+
+            public class CreateReply : Base
+            {
+                public object Id { get; }
+                public IActorRef Actor { get; }
+
+                public CreateReply(Create requestMessage, object id, IActorRef actor)
+                    : base(requestMessage)
+                {
+                    Id = id;
+                    Actor = actor;
+                }
+            }
+
+            public class GetOrCreate : Base
+            {
+                public object Id { get; }
+                public Props ActorProps { get; }
+
+                public GetOrCreate(IActorRef requester, object id, Props actorProps)
+                    : base(requester)
+                {
+                    Id = id;
+                    ActorProps = actorProps;
+                }
+            }
+
+            public class GetOrCreateReply : Base
+            {
+                public object Id { get; }
+                public IActorRef Actor { get; }
+                public bool Created { get; }
+
+                public GetOrCreateReply(GetOrCreate requestMessage, object id, IActorRef actor, bool created)
+                    : base(requestMessage)
+                {
+                    Id = id;
+                    Actor = actor;
+                    Created = created;
+                }
+            }
+
+            public class GetIds : Base
+            {
+                public GetIds(IActorRef requester)
+                    : base(requester)
+                {
+                }
+            }
+
+            public class GetIdsReply : Base
+            {
+                public object[] Ids;
+
+                public GetIdsReply(GetIds requestMessage, object[] ids)
+                    : base(requestMessage)
+                {
+                    Ids = ids;
                 }
             }
         }
