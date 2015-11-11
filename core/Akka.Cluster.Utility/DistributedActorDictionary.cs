@@ -192,7 +192,7 @@ namespace Akka.Cluster.Utility
                 return;
             }
 
-            var actor = _actorFactory.CreateActor(Context, m.Args);
+            var actor = _actorFactory.CreateActor(Context, m.Id, m.Args);
 
             try
             {
@@ -245,7 +245,7 @@ namespace Akka.Cluster.Utility
                 return;
             }
 
-            var actor = _actorFactory.CreateActor(Context, m.Args);
+            var actor = _actorFactory.CreateActor(Context, m.Id, m.Args);
 
             try
             {

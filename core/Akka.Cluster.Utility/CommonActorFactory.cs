@@ -9,9 +9,9 @@ namespace Akka.Cluster.Utility
         {
         }
 
-        public IActorRef CreateActor(IActorRefFactory actorRefFactory, object[] args)
+        public IActorRef CreateActor(IActorRefFactory actorRefFactory, object id, object[] args)
         {
-            return actorRefFactory.ActorOf(Props.Create<TActor>(args));
+            return actorRefFactory.ActorOf(Props.Create<TActor>(args), id.ToString());
         }
     }
 }
