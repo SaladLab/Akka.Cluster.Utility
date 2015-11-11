@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Akka.Actor;
 
 namespace Akka.Cluster.Utility
@@ -8,10 +9,12 @@ namespace Akka.Cluster.Utility
         public class RegisterCluster
         {
             public UniqueAddress ClusterAddress { get; }
+            public List<ClusterActorUp> ActorUpList { get; }
 
-            public RegisterCluster(UniqueAddress clusterAddress)
+            public RegisterCluster(UniqueAddress clusterAddress, List<ClusterActorUp> actorUpList = null)
             {
                 ClusterAddress = clusterAddress;
+                ActorUpList = actorUpList;
             }
         }
 

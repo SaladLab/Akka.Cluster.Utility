@@ -86,25 +86,23 @@ namespace Akka.Cluster.Utility
                 if (_cluster.SelfUniqueAddress == m.Member.UniqueAddress)
                 {
                     var roles = string.Join(", ", _cluster.SelfRoles);
-                    _log.Info($"Cluster.Up: Address={_cluster.SelfUniqueAddress} Role={roles}");
+                    _log.Info($"Cluster.Up: {_cluster.SelfUniqueAddress} Role={roles}");
                 }
                 else
                 {
                     var remoteDiscoveryActor = Context.ActorSelection(m.Member.Address + "/user/" + _name);
                     remoteDiscoveryActor.Tell(
-                        new ClusterActorDiscoveryMessage.RegisterCluster(_cluster.SelfUniqueAddress));
-
-                    // Notify my actors up to registered node
-
-                    foreach (var a in _actorItems)
-                        remoteDiscoveryActor.Tell(new ClusterActorDiscoveryMessage.ClusterActorUp(a.Actor, a.Tag), Self);
+                        new ClusterActorDiscoveryMessage.RegisterCluster(
+                            _cluster.SelfUniqueAddress,
+                            _actorItems.Select(a => new ClusterActorDiscoveryMessage.ClusterActorUp(a.Actor, a.Tag))
+                                       .ToList()));
                 }
             }
         }
 
         private void Handle(ClusterEvent.UnreachableMember m)
         {
-            _log.Info($"Cluster.Unreachable: Address={m.Member.Address} Role={string.Join(",", m.Member.Roles)}");
+            _log.Info($"Cluster.Unreachable: {m.Member.Address} Role={string.Join(",", m.Member.Roles)}");
 
             var item = _nodeMap.FirstOrDefault(i => i.Value.ClusterAddress == m.Member.UniqueAddress);
             if (item.Key != null)
@@ -113,14 +111,14 @@ namespace Akka.Cluster.Utility
 
         private void Handle(ClusterActorDiscoveryMessage.RegisterCluster m)
         {
-            _log.Info($"RegisterCluster: Address={m.ClusterAddress}");
+            _log.Info($"RegisterCluster: {m.ClusterAddress}");
 
             // Register node
 
             var item = _nodeMap.FirstOrDefault(i => i.Value.ClusterAddress == m.ClusterAddress);
             if (item.Key != null)
             {
-                _log.Error($"Already registered node. Address={m.ClusterAddress}");
+                _log.Error($"Already registered node. {m.ClusterAddress}");
                 return;
             }
 
@@ -129,11 +127,19 @@ namespace Akka.Cluster.Utility
                 ClusterAddress = m.ClusterAddress,
                 ActorItems = new List<ActorItem>()
             });
+
+            // Process attached actorUp messages
+
+            if (m.ActorUpList != null)
+            {
+                foreach (var actorUp in m.ActorUpList)
+                    Handle(actorUp);
+            }
         }
 
         private void Handle(ClusterActorDiscoveryMessage.UnregisterCluster m)
         {
-            _log.Info($"UnregisterCluster: Address={m.ClusterAddress}");
+            _log.Info($"UnregisterCluster: {m.ClusterAddress}");
 
             var item = _nodeMap.FirstOrDefault(i => i.Value.ClusterAddress == m.ClusterAddress);
             if (item.Key != null)
@@ -154,7 +160,7 @@ namespace Akka.Cluster.Utility
 
         private void Handle(ClusterActorDiscoveryMessage.ClusterActorUp m)
         {
-            _log.Debug($"ClusterActorUp: Address={m.Actor.Path} Tag={m.Tag}");
+            _log.Debug($"ClusterActorUp: Actor={m.Actor.Path} Tag={m.Tag}");
 
             NodeItem node;
             if (_nodeMap.TryGetValue(Sender, out node) == false)
@@ -169,7 +175,7 @@ namespace Akka.Cluster.Utility
 
         private void Handle(ClusterActorDiscoveryMessage.ClusterActorDown m)
         {
-            _log.Debug($"ClusterActorDown: Address={m.Actor.Path}");
+            _log.Debug($"ClusterActorDown: Actor={m.Actor.Path}");
 
             NodeItem node;
             if (_nodeMap.TryGetValue(Sender, out node) == false)
