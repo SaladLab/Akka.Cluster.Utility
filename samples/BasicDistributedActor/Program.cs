@@ -11,6 +11,10 @@ using Akka.Configuration;
 
 namespace BasicDistributedActor
 {
+    using Table = DistributedActorTable<long>;
+    using TableContainer = DistributedActorTableContainer<long>;
+    using Message = DistributedActorTableMessage<long>;
+
     class Program
     {
         private class ClusterNode
@@ -40,19 +44,19 @@ namespace BasicDistributedActor
                   }
                 }");
 
-            var centerPort = 3000;
-            var nodePort = 4000;
+            var tablePort = 3000;
+            var containerPort = 4000;
 
             var standAlone = args.Length > 0 && args[0] == "standalone";
             if (standAlone)
             {
-                CreateClusterNode(commonConfig, ++centerPort, "center", "node");
+                CreateClusterNode(commonConfig, ++tablePort, "table", "container");
             }
             else
             {
-                CreateClusterNode(commonConfig, ++centerPort, "center");
-                CreateClusterNode(commonConfig, ++nodePort, "node");
-                CreateClusterNode(commonConfig, ++nodePort, "node");
+                CreateClusterNode(commonConfig, ++tablePort, "table");
+                CreateClusterNode(commonConfig, ++containerPort, "container");
+                CreateClusterNode(commonConfig, ++containerPort, "container");
             }
 
             // wait for stop signal
@@ -64,8 +68,9 @@ namespace BasicDistributedActor
                 Console.WriteLine("  c [data]    create actor");
                 Console.WriteLine("  g [id]      get actor with id");
                 Console.WriteLine("  d [id]      delete actor with id");
-                Console.WriteLine("  cc [role]   create node (c: center, n: dictionary-node)");
-                Console.WriteLine("  ck [role]   kill node (c: center, n: dictionary-node)");
+                Console.WriteLine("  i           get all actors' id");
+                Console.WriteLine("  cc [role]   create node (t: table, c: table-container)");
+                Console.WriteLine("  ck [role]   kill node (t: table, c: table-container)");
                 Console.WriteLine("  q           quit");
             };
 
@@ -77,33 +82,32 @@ namespace BasicDistributedActor
                 {
                     break;
                 }
-                else if (line.StartsWith("c "))
+                else if (line == "c" || line.StartsWith("c "))
                 {
-                    var node = GetDictionaryNode(0);
-                    if (node == null)
+                    var table = GetTable();
+                    if (table == null)
                     {
-                        Console.WriteLine("No Node");
+                        Console.WriteLine("No Table");
                         return;
                     }
-                    long id;
-                    long.TryParse(line.Substring(2), out id);
-                    var reply = node.Ask<DistributedActorDictionaryMessage.CreateReply>(
-                        new DistributedActorDictionaryMessage.Create(id != 0 ? (object)id : null,
-                                                                     new object[] { DateTime.Now.ToString() })).Result;
+                    long id = 0;
+                    if (line.Length > 2)
+                        long.TryParse(line.Substring(2), out id);
+                    var reply = table.Ask<Message.CreateReply>(
+                        new Message.Create(id, new object[] { DateTime.Now.ToString() })).Result;
                     Console.WriteLine($"Result ID: {reply.Id} {reply.Actor?.Path}");
                 }
                 else if (line.StartsWith("g "))
                 {
-                    var node = GetDictionaryNode(0);
-                    if (node == null)
+                    var table = GetTable();
+                    if (table == null)
                     {
-                        Console.WriteLine("No Node");
+                        Console.WriteLine("No Table");
                         return;
                     }
                     long id;
                     long.TryParse(line.Substring(2), out id);
-                    var reply = node.Ask<DistributedActorDictionaryMessage.GetReply>(
-                        new DistributedActorDictionaryMessage.Get(id)).Result;
+                    var reply = table.Ask<Message.GetReply>(new Message.Get(id)).Result;
                     if (reply.Actor != null)
                         Console.WriteLine($"Result Actor: {reply.Actor.Path}");
                     else
@@ -111,26 +115,46 @@ namespace BasicDistributedActor
                 }
                 else if (line.StartsWith("d "))
                 {
-                    var node = GetDictionaryNode(0);
-                    if (node == null)
+                    var table = GetTable();
+                    if (table == null)
                     {
-                        Console.WriteLine("No Node");
+                        Console.WriteLine("No Table");
                         return;
                     }
                     long id;
                     long.TryParse(line.Substring(2), out id);
-                    node.Tell(new DistributedActorDictionaryMessage.Remove(id));
+                    var reply = table.Ask<Message.GetReply>(new Message.Get(id)).Result;
+                    if (reply.Actor != null)
+                    {
+                        Console.WriteLine($"Try to delete actor: {reply.Actor.Path}");
+                        reply.Actor.Tell(PoisonPill.Instance);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No actor");
+                    }
+                }
+                else if (line == "i")
+                {
+                    var table = GetTable();
+                    if (table == null)
+                    {
+                        Console.WriteLine("No Table");
+                        return;
+                    }
+                    var reply = table.Ask<Message.GetIdsReply>(new Message.GetIds()).Result;
+                    Console.WriteLine($"Actors: {string.Join(" ", reply.Ids.Select(x => x.ToString()))}");
                 }
                 else if (line.StartsWith("cc "))
                 {
                     var name = line.Substring(2).Trim();
                     switch (name)
                     {
-                        case "c":
-                            CreateClusterNode(commonConfig, ++centerPort, "center");
+                        case "t":
+                            CreateClusterNode(commonConfig, ++tablePort, "table");
                             break;
-                        case "n":
-                            CreateClusterNode(commonConfig, ++nodePort, "node");
+                        case "c":
+                            CreateClusterNode(commonConfig, ++containerPort, "container");
                             break;
                         default:
                             Console.WriteLine("Unknown: " + name);
@@ -142,11 +166,11 @@ namespace BasicDistributedActor
                     var name = line.Substring(2).Trim();
                     switch (name)
                     {
-                        case "c":
-                            KillOneClusterNode("center");
+                        case "t":
+                            KillOneClusterNode("table");
                             break;
-                        case "n":
-                            KillOneClusterNode("node");
+                        case "c":
+                            KillOneClusterNode("container");
                             break;
                         default:
                             Console.WriteLine("Unknown: " + name);
@@ -197,18 +221,16 @@ namespace BasicDistributedActor
                 IActorRef rootActor;
                 switch (role)
                 {
-                    case "center":
+                    case "table":
                         rootActor = node.Context.System.ActorOf(Props.Create(
-                            () => new DistributedActorDictionaryCenter(
-                                      "Test", node.Context.ClusterActorDiscovery,
-                                      typeof(IncrementalIntegerIdGenerator), null)));
+                            () => new Table("Test", node.Context.ClusterActorDiscovery,
+                                            typeof(IncrementalIntegerIdGenerator), null)));
                         break;
 
-                    case "node":
+                    case "container":
                         rootActor = node.Context.System.ActorOf(Props.Create(
-                            () => new DistributedActorDictionary(
-                                      "Test", node.Context.ClusterActorDiscovery,
-                                      typeof(CommonActorFactory<TestActor>), null)));
+                            () => new TableContainer("Test", node.Context.ClusterActorDiscovery,
+                                                     typeof(CommonActorFactory<TestActor>), null)));
                         break;
 
                     default:
@@ -234,9 +256,15 @@ namespace BasicDistributedActor
             }
         }
 
-        private static IActorRef GetDictionaryNode(int ordinal)
+        private static IActorRef GetTable()
         {
-            var nodes = _clusterNodes.Where(c => c.Roles.Any(r => r == "node")).ToList();
+            var node = _clusterNodes.FirstOrDefault(c => c.Roles.Any(r => r == "table"));
+            return node?.RootActors.First();
+        }
+
+        private static IActorRef GetTableContainer(int ordinal)
+        {
+            var nodes = _clusterNodes.Where(c => c.Roles.Any(r => r == "container")).ToList();
             if (ordinal < 0 || ordinal >= nodes.Count)
                 return null;
             return nodes[ordinal].RootActors.Last();

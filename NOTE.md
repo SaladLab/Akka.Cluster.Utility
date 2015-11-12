@@ -1,4 +1,14 @@
-# DistributedActorDictionary Redesign
+# DistributedActorTable Shutdown?
+
+ - Cluster 가 down 되었거나 down 된 것처럼 보일 때 Container 는 어떻게 해야 하나?
+   - Container 가 down 되면 해당 container 의 actor 가 죽은 것으로 간주한다.
+   - down 된 것 처럼 보인다면 cluster 가 이미 actor 를 삭제 처리했을 것이므로 이 경우에는
+     들고 있던 actor 를 모두 제거 하는 것이 옳다.
+   - 정말 container 가 down 된 것이라면 어떻게 하나?
+     이론적으로 container 가 새롭게 등장한 것이라면 들고 있는 actor 를 넘겨줄 수 있다.
+     다만 이 경우 다른 container 와 race condition 이 발생할 수 있으므로 conflict 처리를 해줘야 한다.
+
+# DistributedActorTable Rework (DONE)
 
  - DistributedActorDictionaryCenter 가 Center 를 빼고 메인이 되어야 한다.
    - 이게 외부에서 보이는 기본 Actor 여야 함. 이거 사각이었다. Node 는 implementation detail 이지.

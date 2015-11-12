@@ -2,11 +2,9 @@
 
 namespace Akka.Cluster.Utility
 {
-    public class IncrementalIntegerIdGenerator : IIdGenerator
+    public class IncrementalIntegerIdGenerator : IIdGenerator<long>
     {
         private long _lastId;
-
-        public Type IdType => typeof(long);
 
         public void Initialize(object[] args)
         {
@@ -14,7 +12,7 @@ namespace Akka.Cluster.Utility
                 _lastId = (long)args[0];
         }
 
-        public object GenerateId()
+        public long GenerateId()
         {
             _lastId += 1;
             return _lastId;

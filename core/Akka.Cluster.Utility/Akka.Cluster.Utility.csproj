@@ -75,9 +75,9 @@
     <Compile Include="ClusterActorDiscovery.cs" />
     <Compile Include="ClusterActorDiscoveryMessage.cs" />
     <Compile Include="CommonActorFactory.cs" />
-    <Compile Include="DistributedActorDictionary.cs" />
-    <Compile Include="DistributedActorDictionaryCenter.cs" />
-    <Compile Include="DistributedActorDictionaryMessage.cs" />
+    <Compile Include="DistributedActorTable.cs" />
+    <Compile Include="DistributedActorTableMessage.cs" />
+    <Compile Include="DistributedActorTableContainer.cs" />
     <Compile Include="IActorFactory.cs" />
     <Compile Include="IIdGenerator.cs" />
     <Compile Include="IncrementalIntegerIdGenerator.cs" />
