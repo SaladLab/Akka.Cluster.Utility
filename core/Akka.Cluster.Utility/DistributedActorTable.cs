@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Akka.Actor;
+using Akka.Dispatch.SysMsg;
 using Akka.Event;
 
 namespace Akka.Cluster.Utility
@@ -12,6 +13,7 @@ namespace Akka.Cluster.Utility
         private readonly IActorRef _clusterActorDiscovery;
         private readonly IIdGenerator<TKey> _idGenerator;
         private readonly ILoggingAdapter _log;
+        private readonly bool _underTestEnvironment;
 
         private readonly Dictionary<TKey, IActorRef> _actorMap = new Dictionary<TKey, IActorRef>();
 
@@ -42,6 +44,8 @@ namespace Akka.Cluster.Utility
         private readonly Dictionary<TKey, Creating> _creatingMap = new Dictionary<TKey, Creating>();
         private readonly TimeSpan _createTimeout = TimeSpan.FromSeconds(10);
 
+        private bool _stopping;
+
         public DistributedActorTable(string name, IActorRef clusterActorDiscovery,
                                      Type idGeneratorType, object[] idGeneratorInitializeArgs)
         {
@@ -70,12 +74,27 @@ namespace Akka.Cluster.Utility
             Receive<DistributedActorTableMessage<TKey>.GetOrCreate>(m => Handle(m));
             Receive<DistributedActorTableMessage<TKey>.Get>(m => Handle(m));
             Receive<DistributedActorTableMessage<TKey>.GetIds>(m => Handle(m));
+            Receive<DistributedActorTableMessage<TKey>.GracefulStop>(m => Handle(m));
 
             Receive<DistributedActorTableMessage<TKey>.Internal.CreateReply>(m => Handle(m));
             Receive<DistributedActorTableMessage<TKey>.Internal.Add>(m => Handle(m));
             Receive<DistributedActorTableMessage<TKey>.Internal.Remove>(m => Handle(m));
 
             Receive<CreateTimeoutMessage>(m => Handle(m));
+        }
+
+        public DistributedActorTable(string primingTest,
+                                     string name, IActorRef clusterActorDiscovery,
+                                     Type idGeneratorType, object[] idGeneratorInitializeArgs)
+            : this(name, clusterActorDiscovery, idGeneratorType, idGeneratorInitializeArgs)
+        {
+            if (primingTest != "TEST")
+                throw new ArgumentException(nameof(primingTest));
+
+            _underTestEnvironment = true;
+
+            // Test environment doesn't use cluster so we need to watch container actors by itself.
+            Receive<Terminated>(m => Handle(m));
         }
 
         protected override void PreStart()
@@ -93,6 +112,12 @@ namespace Akka.Cluster.Utility
         {
             _log.Info($"Container.ActorUp (Actor={m.Actor.Path})");
 
+            if (_stopping)
+            {
+                _log.Info($"Ignore ActorUp while stopping. (Actor={m.Actor.Path})");
+                return;
+            }
+
             if (_containerMap.ContainsKey(m.Actor))
             {
                 _log.Error($"I already have that container. (Actor={m.Actor.Path})");
@@ -105,6 +130,9 @@ namespace Akka.Cluster.Utility
                 ActorMap = new Dictionary<TKey, IActorRef>()
             });
             RebuildContainerWorkQueue();
+
+            if (_underTestEnvironment)
+                Context.Watch(m.Actor);
         }
 
         private void Handle(ClusterActorDiscoveryMessage.ActorDown m)
@@ -140,6 +168,20 @@ namespace Akka.Cluster.Utility
                     }
                 }
             }
+
+            // When stopping done, ingest poison pill
+
+            if (_stopping && _containerMap.Count == 0)
+            {
+                Context.Stop(Self);
+            }
+        }
+
+        private void Handle(Terminated m)
+        {
+            // This function should be used under test environment only.
+
+            Handle(new ClusterActorDiscoveryMessage.ActorDown(m.ActorRef, null));
         }
 
         private IActorRef DecideWorkingContainer()
@@ -219,6 +261,9 @@ namespace Akka.Cluster.Utility
 
         private void Handle(DistributedActorTableMessage<TKey>.Create m)
         {
+            if (_stopping)
+                return;
+
             // decide ID (if provided, use it, otherwise generate new one)
 
             TKey id;
@@ -254,6 +299,9 @@ namespace Akka.Cluster.Utility
 
         private void Handle(DistributedActorTableMessage<TKey>.GetOrCreate m)
         {
+            if (_stopping)
+                return;
+
             var id = m.Id;
 
             // try to get actor
@@ -303,6 +351,26 @@ namespace Akka.Cluster.Utility
         private void Handle(DistributedActorTableMessage<TKey>.GetIds m)
         {
             Sender.Tell(new DistributedActorTableMessage<TKey>.GetIdsReply(_actorMap.Keys.ToArray()));
+        }
+
+        private void Handle(DistributedActorTableMessage<TKey>.GracefulStop m)
+        {
+            if (_stopping)
+                return;
+
+            _stopping = true;
+
+            if (_containerMap.Count > 0)
+            {
+                foreach (var i in _containerMap)
+                {
+                    i.Key.Tell(new DistributedActorTableMessage<TKey>.Internal.GracefulStop(m.StopMessage));
+                }
+            }
+            else
+            {
+                Context.Stop(Self);
+            }
         }
 
         private void Handle(DistributedActorTableMessage<TKey>.Internal.CreateReply m)

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Akka.Actor;
+using Akka.Dispatch.SysMsg;
 using Akka.TestKit;
 using Akka.TestKit.TestActors;
 using Xunit;
@@ -29,7 +30,7 @@ namespace Akka.Cluster.Utility.Tests
             var nullDiscovery = ActorOf(BlackHoleActor.Props);
 
             var table = ActorOfAsTestActorRef<Table>(
-                Props.Create<Table>(name, nullDiscovery, typeof(IncrementalIntegerIdGenerator), null),
+                Props.Create<Table>("TEST", name, nullDiscovery, typeof(IncrementalIntegerIdGenerator), null),
                 name);
 
             var containers = new TestActorRef<TableContainer>[containerCount];
@@ -262,6 +263,34 @@ namespace Akka.Cluster.Utility.Tests
             var reply2 = await sys.Table.Ask<Message.GetReply>(new Message.Get(reply.Id));
             Assert.Equal(reply.Id, reply2.Id);
             Assert.Null(reply2.Actor);
+        }
+
+        [Fact]
+        public async Task Test_GracefulStop_With_Container_Table()
+        {
+            var sys = Setup();
+            var ok = await sys.Table.GracefulStop(TimeSpan.FromMinutes(1), new Message.GracefulStop(null));
+            Assert.True(ok);
+        }
+
+        [Fact]
+        public async Task Test_GracefulStop_With_Container_With_Actors_Table()
+        {
+            var sys = Setup();
+            sys.Table.Tell(new Message.Create(BlackHoleActor.Props.Arguments));
+            sys.Table.Tell(new Message.Create(BlackHoleActor.Props.Arguments));
+            var ok = await sys.Table.GracefulStop(TimeSpan.FromMinutes(1), new Message.GracefulStop(null));
+            Assert.True(ok);
+        }
+
+        [Fact]
+        public async Task Test_GracefulStop_Without_Container_Table()
+        {
+            var sys = Setup();
+            Sys.Stop(sys.Containers[0]);
+            Sys.Stop(sys.Containers[1]);
+            var ok = await sys.Table.GracefulStop(TimeSpan.FromMinutes(1), new Message.GracefulStop(null));
+            Assert.True(ok);
         }
     }
 }

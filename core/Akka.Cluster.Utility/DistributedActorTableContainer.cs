@@ -15,8 +15,11 @@ namespace Akka.Cluster.Utility
         private IActorRef _table;
         private readonly Dictionary<TKey, IActorRef> _actorMap = new Dictionary<TKey, IActorRef>();
         private readonly Dictionary<IActorRef, TKey> _actorInverseMap = new Dictionary<IActorRef, TKey>();
+        private int _watchingActorCount;
 
         private readonly Dictionary<TKey, IActorRef> _addingMap = new Dictionary<TKey, IActorRef>();
+
+        private bool _stopping;
 
         public DistributedActorTableContainer(string name, IActorRef clusterActorDiscovery,
                                               Type actorFactoryType, object[] actorFactoryInitalizeArgs)
@@ -47,6 +50,7 @@ namespace Akka.Cluster.Utility
 
             Receive<DistributedActorTableMessage<TKey>.Internal.Create>(m => Handle(m));
             Receive<DistributedActorTableMessage<TKey>.Internal.AddReply>(m => Handle(m));
+            Receive<DistributedActorTableMessage<TKey>.Internal.GracefulStop>(m => Handle(m));
 
             Receive<Terminated>(m => Handle(m));
         }
@@ -86,7 +90,7 @@ namespace Akka.Cluster.Utility
 
         private void Handle(DistributedActorTableMessage<TKey>.Add m)
         {
-            if (_table == null)
+            if (_table == null || _stopping)
             {
                 Sender.Tell(new DistributedActorTableMessage<TKey>.AddReply(m.Id, m.Actor, false));
                 return;
@@ -110,6 +114,7 @@ namespace Akka.Cluster.Utility
             _actorInverseMap.Add(m.Actor, m.Id);
             _addingMap.Add(m.Id, Sender);
             Context.Watch(m.Actor);
+            _watchingActorCount += 1;
 
             _table.Tell(new DistributedActorTableMessage<TKey>.Internal.Add(m.Id, m.Actor));
         }
@@ -126,13 +131,14 @@ namespace Akka.Cluster.Utility
             _actorMap.Remove(m.Id);
             _actorInverseMap.Remove(actor);
             Context.Unwatch(actor);
+            _watchingActorCount -= 1;
 
             _table?.Tell(new DistributedActorTableMessage<TKey>.Internal.Remove(m.Id));
         }
 
         private void Handle(DistributedActorTableMessage<TKey>.Internal.Create m)
         {
-            if (_table == null)
+            if (_table == null || _stopping)
                 return;
 
             if (_actorFactory == null)
@@ -157,6 +163,7 @@ namespace Akka.Cluster.Utility
             _actorMap.Add(m.Id, actor);
             _actorInverseMap.Add(actor, m.Id);
             Context.Watch(actor);
+            _watchingActorCount += 1;
 
             Sender.Tell(new DistributedActorTableMessage<TKey>.Internal.CreateReply(m.Id, actor));
         }
@@ -181,8 +188,29 @@ namespace Akka.Cluster.Utility
                 _actorMap.Remove(m.Id);
                 _actorInverseMap.Remove(m.Actor);
                 Context.Unwatch(m.Actor);
+                _watchingActorCount -= 1;
 
                 requester.Tell(new DistributedActorTableMessage<TKey>.AddReply(m.Id, m.Actor, false));
+            }
+        }
+
+        private void Handle(DistributedActorTableMessage<TKey>.Internal.GracefulStop m)
+        {
+            if (_stopping)
+                return;
+
+            _stopping = true;
+
+            if (_actorMap.Count > 0)
+            {
+                foreach (var i in _actorMap)
+                {
+                    i.Value.Tell(m.StopMessage ?? PoisonPill.Instance);
+                }
+            }
+            else
+            {
+                Context.Stop(Self);
             }
         }
 
@@ -194,8 +222,17 @@ namespace Akka.Cluster.Utility
 
             _actorMap.Remove(id);
             _actorInverseMap.Remove(m.ActorRef);
+            _watchingActorCount -= 1;
 
-            _table?.Tell(new DistributedActorTableMessage<TKey>.Internal.Remove(id));
+            if (_stopping)
+            {
+                if (_watchingActorCount == 0)
+                    Context.Stop(Self);
+            }
+            else
+            {
+                _table?.Tell(new DistributedActorTableMessage<TKey>.Internal.Remove(id));
+            }
         }
     }
 }

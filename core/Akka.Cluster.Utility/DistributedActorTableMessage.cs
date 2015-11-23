@@ -97,6 +97,17 @@ namespace Akka.Cluster.Utility
             }
         }
 
+        // Request to a table to stop all table & actors contained gracefully
+        public class GracefulStop
+        {
+            public object StopMessage { get; }
+
+            public GracefulStop(object stopMessage)
+            {
+                StopMessage = stopMessage;
+            }
+        }
+
         // Ask for a local container to add actor to table. (not for table directly)
         public class Add
         {
@@ -194,6 +205,16 @@ namespace Akka.Cluster.Utility
                 public Remove(TKey id)
                 {
                     Id = id;
+                }
+            }
+
+            public class GracefulStop
+            {
+                public object StopMessage { get; }
+
+                public GracefulStop(object stopMessage)
+                {
+                    StopMessage = stopMessage;
                 }
             }
         }

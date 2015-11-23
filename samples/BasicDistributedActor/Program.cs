@@ -183,6 +183,19 @@ namespace BasicDistributedActor
                 }
             }
 
+            // stop
+
+            Console.WriteLine("Stopping table");
+            foreach (var i in _clusterNodes)
+            {
+                if (i.Roles.Any(r => r == "table"))
+                {
+                    i.RootActors[0].GracefulStop(TimeSpan.FromMinutes(1),
+                                                 new Message.GracefulStop(null)).Wait();
+                }
+            }
+            Console.WriteLine("Table stoped");
+
             // shutdown
 
             _clusterNodes.Reverse();
@@ -223,13 +236,13 @@ namespace BasicDistributedActor
                 {
                     case "table":
                         rootActor = node.Context.System.ActorOf(Props.Create(
-                            () => new Table("Test", node.Context.ClusterActorDiscovery,
+                            () => new Table("TestTable", node.Context.ClusterActorDiscovery,
                                             typeof(IncrementalIntegerIdGenerator), null)));
                         break;
 
                     case "container":
                         rootActor = node.Context.System.ActorOf(Props.Create(
-                            () => new TableContainer("Test", node.Context.ClusterActorDiscovery,
+                            () => new TableContainer("TestTable", node.Context.ClusterActorDiscovery,
                                                      typeof(CommonActorFactory<TestActor>), null)));
                         break;
 
