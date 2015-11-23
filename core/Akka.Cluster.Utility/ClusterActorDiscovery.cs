@@ -248,7 +248,7 @@ namespace Akka.Cluster.Utility
             _log.Debug($"MonitorActor: Monitor={Sender.Path} Tag={m.Tag}");
 
             _monitorItems.Add(new MonitorItem { Actor = Sender, Tag = m.Tag });
-            UnwatchActor(Sender, 1);
+            WatchActor(Sender, 1);
 
             // Send actor up message to just registered monitor
 
@@ -315,6 +315,10 @@ namespace Akka.Cluster.Utility
 
         private void WatchActor(IActorRef actor, int channel)
         {
+            // every watched actor counter has 2 values identified by channel
+            // - channel 0: source actor watching counter
+            // - channel 1: monitor actor watching counter (to track monitoring actor destroyed)
+
             int[] counts;
             if (_actorWatchCountMap.TryGetValue(actor, out counts))
             {
