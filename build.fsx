@@ -39,8 +39,8 @@ let projects = ([
     {   emptyProject with
         Name="Akka.Cluster.Utility";
         Folder="./core/Akka.Cluster.Utility";
-        Dependencies=[("Akka", "1.0.4"); 
-                      ("Akka.Cluster", "1.0.4.12-beta")];
+        Dependencies=[("Akka", ""); 
+                      ("Akka.Cluster", "")];
     }]
     |> List.map (fun p -> 
         let parsedReleases =
@@ -55,10 +55,12 @@ let projects = ([
 let project name =
     List.filter (fun p -> p.Name = name) projects |> List.head
 
-let dependencies p =
+let dependencies p deps =
     p.Dependencies |>
     List.map (fun d -> match d with 
-                       | (id, "") -> (id, (project id).PackageVersion)
+                       | (id, "") -> (id, match List.tryFind (fun (x, ver) -> x = id) deps with
+                                          | Some (_, ver) -> ver
+                                          | None -> ((project id).PackageVersion))
                        | (id, ver) -> (id, ver))
     
 // ---------------------------------------------------------------------------- Variables
@@ -125,12 +127,15 @@ let createNugetPackages _ =
         let isSrc f = (hasExt ".cs" f) && not (isAssemblyInfo f)
         CopyDir (workDir @@ "src") project.Folder isSrc
 
+        let packageFile = project.Folder @@ "packages.config"
+        let packageDependencies = if (fileExists packageFile) then (getDependencies packageFile) else []
+
         NuGet (fun p -> 
             {p with
                 Project = project.Name
                 OutputPath = nugetDir
                 WorkingDir = workDir
-                Dependencies = dependencies project
+                Dependencies = dependencies project packageDependencies
                 SymbolPackage = (if (project.Name.Contains("Templates")) then NugetSymbolPackage.None else NugetSymbolPackage.Nuspec)
                 Version = project.PackageVersion 
                 ReleaseNotes = (List.head project.Releases).Notes |> String.concat "\n"
