@@ -201,7 +201,7 @@ namespace BasicDistributedActor
             _clusterNodes.Reverse();
             foreach (var cluster in _clusterNodes)
             {
-                cluster.Context.System.Shutdown();
+                cluster.Context.System.Terminate();
             }
         }
 
@@ -263,7 +263,7 @@ namespace BasicDistributedActor
                 var cluster = Cluster.Get(node.Context.System);
                 cluster.Leave(cluster.SelfAddress);
                 Thread.Sleep(2000);
-                node.Context.System.Shutdown();
+                node.Context.System.Terminate();
 
                 // TODO: Gracefully leave from cluster?
             }
