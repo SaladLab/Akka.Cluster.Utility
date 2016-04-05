@@ -168,6 +168,7 @@ namespace Akka.Cluster.Utility
                 _log.Error($"Cannot find node: Discovery={Sender.Path}");
                 return;
             }
+
             node.ActorItems.Add(new ActorItem { Actor = m.Actor, Tag = m.Tag });
 
             NotifyActorUpToMonitor(m.Actor, m.Tag);
@@ -284,6 +285,7 @@ namespace Akka.Cluster.Utility
                 _monitorItems.RemoveAll(w => w.Actor.Equals(Sender));
                 counts[1] = 0;
             }
+
             if (counts[0] > 0)
             {
                 var index = _actorItems.FindIndex(a => a.Actor.Equals(m.ActorRef));

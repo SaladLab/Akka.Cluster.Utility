@@ -77,7 +77,7 @@ namespace Akka.Cluster.Utility.Tests
             Assert.Equal(reply.Id, reply2.Id);
             Assert.Equal(reply.Actor, reply2.Actor);
         }
-        
+
         [Fact]
         public async Task Test_GetOrCreate_And_Get_Succeed()
         {

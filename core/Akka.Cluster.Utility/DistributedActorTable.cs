@@ -234,10 +234,10 @@ namespace Akka.Cluster.Utility
             {
                 case RequestType.Create:
                     return new DistributedActorTableMessage<TKey>.CreateReply(id, actor);
-                    
+
                 case RequestType.GetOrCreate:
                     return new DistributedActorTableMessage<TKey>.GetOrCreateReply(id, actor, created);
-                    
+
                 case RequestType.Get:
                     return new DistributedActorTableMessage<TKey>.GetReply(id, actor);
 
@@ -433,11 +433,11 @@ namespace Akka.Cluster.Utility
                 _actorMap.Add(m.Id, m.Actor);
                 container.ActorMap.Add(m.Id, m.Actor);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Sender.Tell(new DistributedActorTableMessage<TKey>.Internal.AddReply(m.Id, m.Actor, false));
             }
-            
+
             Sender.Tell(new DistributedActorTableMessage<TKey>.Internal.AddReply(m.Id, m.Actor, true));
         }
 
@@ -477,7 +477,7 @@ namespace Akka.Cluster.Utility
 
         private void Handle(CreateTimeoutMessage m)
         {
-            var threshold = DateTime.UtcNow - (m.Timeout ??_createTimeout);
+            var threshold = DateTime.UtcNow - (m.Timeout ?? _createTimeout);
 
             var expiredItems = _creatingMap.Where(i => i.Value.RequestTime <= threshold).ToList();
             foreach (var i in expiredItems)

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design.Serialization;
 using System.Linq;
 using System.Threading;
 using Akka.Actor;
@@ -10,7 +9,7 @@ using Akka.Configuration;
 
 namespace BasicCluster
 {
-    class Program
+    internal class Program
     {
         private class ClusterNode
         {

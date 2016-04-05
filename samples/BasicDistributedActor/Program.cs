@@ -15,7 +15,7 @@ namespace BasicDistributedActor
     using TableContainer = DistributedActorTableContainer<long>;
     using Message = DistributedActorTableMessage<long>;
 
-    class Program
+    internal class Program
     {
         private class ClusterNode
         {
@@ -26,7 +26,7 @@ namespace BasicDistributedActor
 
         private static readonly List<ClusterNode> _clusterNodes = new List<ClusterNode>();
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             var commonConfig = ConfigurationFactory.ParseString(@"
                 akka {
