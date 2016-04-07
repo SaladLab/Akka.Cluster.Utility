@@ -7,8 +7,8 @@
     <authors>Esun Kim</authors>
     <owners>Esun Kim</owners>
     <description>Akka.Cluster.Utility</description>
-    <licenseUrl>https://raw.githubusercontent.com/SaladbowlCreative/Akka.Cluster.Utility/master/LICENSE</licenseUrl>
-    <projectUrl>https://github.com/SaladbowlCreative/Akka.Cluster.Utility</projectUrl>
+    <licenseUrl>https://raw.githubusercontent.com/SaladLab/Akka.Cluster.Utility/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/SaladLab/Akka.Cluster.Utility</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <releaseNotes>@releaseNotes@</releaseNotes>
     <copyright>Copyright © 2016 SaladLab</copyright>
