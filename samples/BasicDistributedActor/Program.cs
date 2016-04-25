@@ -32,6 +32,12 @@ namespace BasicDistributedActor
                 akka {
                   actor {
                     provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
+                    serializers {
+                      wire = ""Akka.Serialization.WireSerializer, Akka.Serialization.Wire""
+                    }
+                    serialization-bindings {
+                      ""System.Object"" = wire
+                    }
                   }
                   remote {
                     helios.tcp {
