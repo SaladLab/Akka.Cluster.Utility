@@ -2,6 +2,7 @@
 using System.Linq;
 using Akka.Actor;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Akka.Cluster.Utility.Tests
 {
@@ -10,6 +11,11 @@ namespace Akka.Cluster.Utility.Tests
         private UniqueAddress CreateUniqueAddress(int port)
         {
             return new UniqueAddress(new Address("protocol", "system", "localhost", port), 1);
+        }
+
+        public ClusterActorDiscoveryTest(ITestOutputHelper output)
+            : base(output: output)
+        {
         }
 
         [Fact]

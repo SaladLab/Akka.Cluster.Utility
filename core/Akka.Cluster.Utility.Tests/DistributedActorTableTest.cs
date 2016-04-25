@@ -2,13 +2,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Akka.Actor;
-using Akka.Dispatch.SysMsg;
 using Akka.TestKit;
 using Akka.TestKit.TestActors;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Akka.Cluster.Utility.Tests
 {
@@ -22,6 +21,11 @@ namespace Akka.Cluster.Utility.Tests
         {
             public TestActorRef<Table> Table;
             public TestActorRef<TableContainer>[] Containers;
+        }
+
+        public DistributedActorTableContainerTest(ITestOutputHelper output)
+            : base(output: output)
+        {
         }
 
         public TestSystem Setup(int containerCount = 2)
