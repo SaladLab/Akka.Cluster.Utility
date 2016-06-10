@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<packages>
+    <package id="Akka.Cluster.Utility">
+        <files dir="lib/net45" source="core/Akka.Cluster.Utility/bin/Debug"/>
+    </package>
+</packages>
