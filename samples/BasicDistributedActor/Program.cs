@@ -249,7 +249,7 @@ namespace BasicDistributedActor
                     case "container":
                         rootActor = node.Context.System.ActorOf(Props.Create(
                             () => new TableContainer("TestTable", node.Context.ClusterActorDiscovery,
-                                                     typeof(CommonActorFactory<TestActor>), null)));
+                                                     typeof(CommonActorFactory<TestActor>), null, null)));
                         break;
 
                     default:

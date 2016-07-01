@@ -10,6 +10,7 @@ namespace Akka.Cluster.Utility
         private readonly string _name;
         private readonly IActorRef _clusterActorDiscovery;
         private readonly IActorFactory _actorFactory;
+        private readonly object _downMessage;
         private readonly ILoggingAdapter _log;
 
         private IActorRef _table;
@@ -22,10 +23,12 @@ namespace Akka.Cluster.Utility
         private bool _stopping;
 
         public DistributedActorTableContainer(string name, IActorRef clusterActorDiscovery,
-                                              Type actorFactoryType, object[] actorFactoryInitalizeArgs)
+                                              Type actorFactoryType, object[] actorFactoryInitalizeArgs,
+                                              object downMessage = null)
         {
             _name = name;
             _clusterActorDiscovery = clusterActorDiscovery;
+            _downMessage = downMessage;
             _log = Context.GetLogger();
 
             if (actorFactoryType != null)
@@ -80,12 +83,22 @@ namespace Akka.Cluster.Utility
         {
             _log.Info($"Table.ActorDown (Actor={m.Actor.Path})");
 
-            if (_table.Equals(m.Actor))
-                _table = null;
-            else
+            if (_table.Equals(m.Actor) == false)
+            {
                 _log.Error($"But I have a different table. (Actor={_table.Path})");
+                return;
+            }
 
-            // TODO: Shutdown all actors
+            _table = null;
+
+            CancelAllPendingAddRequests();
+
+            foreach (var i in _actorMap)
+            {
+                i.Value.Tell(_downMessage ?? PoisonPill.Instance);
+            }
+
+            // NOTE: should we clear actor map or let them to be removed ?
         }
 
         private void Handle(DistributedActorTableMessage<TKey>.Add m)
@@ -194,12 +207,29 @@ namespace Akka.Cluster.Utility
             }
         }
 
+        private void CancelAllPendingAddRequests()
+        {
+            foreach (var i in _addingMap)
+            {
+                _actorMap.Remove(i.Key);
+                _actorInverseMap.Remove(i.Value);
+                Context.Unwatch(i.Value);
+                _watchingActorCount -= 1;
+
+                i.Value.Tell(new DistributedActorTableMessage<TKey>.AddReply(i.Key, i.Value, false));
+            }
+
+            _addingMap.Clear();
+        }
+
         private void Handle(DistributedActorTableMessage<TKey>.Internal.GracefulStop m)
         {
             if (_stopping)
                 return;
 
             _stopping = true;
+
+            CancelAllPendingAddRequests();
 
             if (_actorMap.Count > 0)
             {

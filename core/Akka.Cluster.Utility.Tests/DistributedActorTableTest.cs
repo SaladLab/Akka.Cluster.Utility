@@ -33,15 +33,15 @@ namespace Akka.Cluster.Utility.Tests
             var name = "TestDict";
             var nullDiscovery = ActorOf(BlackHoleActor.Props);
 
-            var table = ActorOfAsTestActorRef<Table>(
-                Props.Create<Table>("TEST", name, nullDiscovery, typeof(IncrementalIntegerIdGenerator), null),
+            var table = ActorOfAsTestActorRef(
+                () => new Table("TEST", name, nullDiscovery, typeof(IncrementalIntegerIdGenerator), null),
                 name);
 
             var containers = new TestActorRef<TableContainer>[containerCount];
             for (var i = 0; i < containerCount; i++)
             {
-                var node = ActorOfAsTestActorRef<TableContainer>(
-                    Props.Create<TableContainer>(name, nullDiscovery, typeof(CommonActorFactory<BlackHoleActor>), null),
+                var node = ActorOfAsTestActorRef(
+                    () => new TableContainer(name, nullDiscovery, typeof(CommonActorFactory<BlackHoleActor>), null, null),
                     name + "Container" + i);
 
                 node.Tell(new ClusterActorDiscoveryMessage.ActorUp(table, name));
