@@ -53,6 +53,7 @@ namespace Akka.Cluster.Utility
             _log = Context.GetLogger();
 
             Receive<ClusterEvent.MemberUp>(m => Handle(m));
+            Receive<ClusterEvent.ReachableMember>(m => Handle(m));
             Receive<ClusterEvent.UnreachableMember>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.RegisterCluster>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.UnregisterCluster>(m => Handle(m));
@@ -70,6 +71,7 @@ namespace Akka.Cluster.Utility
             _cluster?.Subscribe(Self, new[]
             {
                 typeof(ClusterEvent.MemberUp),
+                typeof(ClusterEvent.ReachableMember),
                 typeof(ClusterEvent.UnreachableMember)
             });
         }
@@ -81,16 +83,21 @@ namespace Akka.Cluster.Utility
 
         private void Handle(ClusterEvent.MemberUp m)
         {
+            SetOnline(m.Member);
+        }
+
+        private void SetOnline(Member member)
+        {
             if (_cluster != null)
             {
-                if (_cluster.SelfUniqueAddress == m.Member.UniqueAddress)
+                if (_cluster.SelfUniqueAddress == member.UniqueAddress)
                 {
                     var roles = string.Join(", ", _cluster.SelfRoles);
                     _log.Info($"Cluster.Up: {_cluster.SelfUniqueAddress} Role={roles}");
                 }
                 else
                 {
-                    var remoteDiscoveryActor = Context.ActorSelection(m.Member.Address + "/user/" + _name);
+                    var remoteDiscoveryActor = Context.ActorSelection(member.Address + "/user/" + _name);
                     remoteDiscoveryActor.Tell(
                         new ClusterActorDiscoveryMessage.RegisterCluster(
                             _cluster.SelfUniqueAddress,
@@ -98,6 +105,12 @@ namespace Akka.Cluster.Utility
                                        .ToList()));
                 }
             }
+        }
+
+        private void Handle(ClusterEvent.ReachableMember m)
+        {
+            _log.Info($"Cluster.Rechable: {m.Member.Address} Role={string.Join(",", m.Member.Roles)}");
+            SetOnline(m.Member);
         }
 
         private void Handle(ClusterEvent.UnreachableMember m)
