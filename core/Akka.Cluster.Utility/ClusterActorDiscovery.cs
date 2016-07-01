@@ -56,7 +56,8 @@ namespace Akka.Cluster.Utility
             Receive<ClusterEvent.ReachableMember>(m => Handle(m));
             Receive<ClusterEvent.UnreachableMember>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.RegisterCluster>(m => Handle(m));
-            Receive<ClusterActorDiscoveryMessage.UnregisterCluster>(m => Handle(m));
+            Receive<ClusterActorDiscoveryMessage.ResyncCluster>(m => Handle(m));
+            // Receive<ClusterActorDiscoveryMessage.UnregisterCluster>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.ClusterActorUp>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.ClusterActorDown>(m => Handle(m));
             Receive<ClusterActorDiscoveryMessage.RegisterActor>(m => Handle(m));
@@ -83,34 +84,45 @@ namespace Akka.Cluster.Utility
 
         private void Handle(ClusterEvent.MemberUp m)
         {
-            SetOnline(m.Member);
-        }
-
-        private void SetOnline(Member member)
-        {
             if (_cluster != null)
             {
-                if (_cluster.SelfUniqueAddress == member.UniqueAddress)
+                if (_cluster.SelfUniqueAddress == m.Member.UniqueAddress)
                 {
                     var roles = string.Join(", ", _cluster.SelfRoles);
                     _log.Info($"Cluster.Up: {_cluster.SelfUniqueAddress} Role={roles}");
                 }
                 else
                 {
-                    var remoteDiscoveryActor = Context.ActorSelection(member.Address + "/user/" + _name);
+                    var remoteDiscoveryActor = Context.ActorSelection(m.Member.Address + "/user/" + _name);
                     remoteDiscoveryActor.Tell(
                         new ClusterActorDiscoveryMessage.RegisterCluster(
                             _cluster.SelfUniqueAddress,
-                            _actorItems.Select(a => new ClusterActorDiscoveryMessage.ClusterActorUp(a.Actor, a.Tag))
-                                       .ToList()));
+                            _actorItems.Select(a => new ClusterActorDiscoveryMessage.ClusterActorUp(a.Actor, a.Tag)).ToList()));
                 }
             }
         }
 
         private void Handle(ClusterEvent.ReachableMember m)
         {
-            _log.Info($"Cluster.Rechable: {m.Member.Address} Role={string.Join(",", m.Member.Roles)}");
-            SetOnline(m.Member);
+            if (_cluster != null)
+            {
+                if (_cluster.SelfUniqueAddress == m.Member.UniqueAddress)
+                {
+                    var roles = string.Join(", ", _cluster.SelfRoles);
+                    _log.Info($"Cluster.RechableMe: {_cluster.SelfUniqueAddress} Role={roles}");
+                }
+                else
+                {
+                    _log.Info($"Cluster.Rechable: {m.Member.Address} Role={string.Join(",", m.Member.Roles)}");
+
+                    var remoteDiscoveryActor = Context.ActorSelection(m.Member.Address + "/user/" + _name);
+                    remoteDiscoveryActor.Tell(
+                        new ClusterActorDiscoveryMessage.ResyncCluster(
+                            _cluster.SelfUniqueAddress,
+                            _actorItems.Select(a => new ClusterActorDiscoveryMessage.ClusterActorUp(a.Actor, a.Tag)).ToList(),
+                            true));
+                }
+            }
         }
 
         private void Handle(ClusterEvent.UnreachableMember m)
@@ -150,14 +162,50 @@ namespace Akka.Cluster.Utility
             }
         }
 
-        private void Handle(ClusterActorDiscoveryMessage.UnregisterCluster m)
+        private void Handle(ClusterActorDiscoveryMessage.ResyncCluster m)
         {
-            _log.Info($"UnregisterCluster: {m.ClusterAddress}");
+            _log.Info($"ResyncCluster: {m.ClusterAddress} Request={m.Request}");
+
+            // Reregister node
 
             var item = _nodeMap.FirstOrDefault(i => i.Value.ClusterAddress == m.ClusterAddress);
             if (item.Key != null)
                 RemoveNode(item.Key);
+
+            _nodeMap.Add(Sender, new NodeItem
+            {
+                ClusterAddress = m.ClusterAddress,
+                ActorItems = new List<ActorItem>()
+            });
+
+            // Process attached actorUp messages
+
+            if (m.ActorUpList != null)
+            {
+                foreach (var actorUp in m.ActorUpList)
+                    Handle(actorUp);
+            }
+
+            // Response
+
+            if (m.Request)
+            {
+                Sender.Tell(
+                    new ClusterActorDiscoveryMessage.ResyncCluster(
+                        _cluster.SelfUniqueAddress,
+                        _actorItems.Select(a => new ClusterActorDiscoveryMessage.ClusterActorUp(a.Actor, a.Tag)).ToList(),
+                        false));
+            }
         }
+
+        //private void Handle(ClusterActorDiscoveryMessage.UnregisterCluster m)
+        //{
+        //    _log.Info($"UnregisterCluster: {m.ClusterAddress}");
+
+        //    var item = _nodeMap.FirstOrDefault(i => i.Value.ClusterAddress == m.ClusterAddress);
+        //    if (item.Key != null)
+        //        RemoveNode(item.Key);
+        //}
 
         private void RemoveNode(IActorRef discoveryActor)
         {

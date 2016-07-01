@@ -11,23 +11,38 @@ namespace Akka.Cluster.Utility
             public UniqueAddress ClusterAddress { get; }
             public List<ClusterActorUp> ActorUpList { get; }
 
-            public RegisterCluster(UniqueAddress clusterAddress, List<ClusterActorUp> actorUpList = null)
+            public RegisterCluster(UniqueAddress clusterAddress, List<ClusterActorUp> actorUpList)
             {
                 ClusterAddress = clusterAddress;
                 ActorUpList = actorUpList;
             }
         }
 
-        // Notify other ClusterNodeActors that I'm down
-        public class UnregisterCluster
+        // Notify other ClusterActorDiscoveries that I'm up again
+        public class ResyncCluster
         {
             public UniqueAddress ClusterAddress { get; }
+            public List<ClusterActorUp> ActorUpList { get; }
+            public bool Request { get; }
 
-            public UnregisterCluster(UniqueAddress clusterAddress)
+            public ResyncCluster(UniqueAddress clusterAddress, List<ClusterActorUp> actorUpList, bool request)
             {
                 ClusterAddress = clusterAddress;
+                ActorUpList = actorUpList;
+                Request = request;
             }
         }
+
+        //// Notify other ClusterNodeActors that I'm down
+        //public class UnregisterCluster
+        //{
+        //    public UniqueAddress ClusterAddress { get; }
+
+        //    public UnregisterCluster(UniqueAddress clusterAddress)
+        //    {
+        //        ClusterAddress = clusterAddress;
+        //    }
+        //}
 
         // Notify other ClusterNodeActors that Actor in my cluster node is up
         public class ClusterActorUp
