@@ -11,7 +11,7 @@ namespace Akka.Cluster.Utility
             public UniqueAddress ClusterAddress { get; }
             public List<ClusterActorUp> ActorUpList { get; }
 
-            public RegisterCluster(UniqueAddress clusterAddress, List<ClusterActorUp> actorUpList)
+            public RegisterCluster(UniqueAddress clusterAddress, List<ClusterActorUp> actorUpList = null)
             {
                 ClusterAddress = clusterAddress;
                 ActorUpList = actorUpList;
