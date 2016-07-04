@@ -81,6 +81,7 @@
     <Compile Include="DistributedActorTable.cs" />
     <Compile Include="DistributedActorTableMessage.cs" />
     <Compile Include="DistributedActorTableContainer.cs" />
+    <Compile Include="DistributedActorTableRef.cs" />
     <Compile Include="IActorFactory.cs" />
     <Compile Include="IIdGenerator.cs" />
     <Compile Include="IncrementalIntegerIdGenerator.cs" />
