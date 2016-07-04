@@ -19,8 +19,39 @@ namespace Akka.Cluster.Utility.Tests
     {
         public class TestSystem
         {
-            public TestActorRef<Table> Table;
-            public TestActorRef<TableContainer>[] Containers;
+            private string _name;
+            private IActorRef _nullDiscovery;
+            private TestKitBase _testKit;
+
+            public TestActorRef<Table> Table { get; private set; }
+            public List<TestActorRef<TableContainer>> Containers { get; private set; }
+
+            public TestSystem(TestKitBase testKit, string name, int containerCount)
+            {
+                _testKit = testKit;
+                _name = name;
+                _nullDiscovery = _testKit.ActorOf(BlackHoleActor.Props);
+
+                Table = _testKit.ActorOfAsTestActorRef(
+                    () => new Table("TEST", _name, _nullDiscovery, typeof(IncrementalIntegerIdGenerator), null),
+                    _name);
+                Containers = new List<TestActorRef<DistributedActorTableContainer<long>>>();
+                for (int i = 0; i < containerCount; i++)
+                    AddConstainer();
+            }
+
+            public void AddConstainer()
+            {
+                var index = Containers.Count;
+                var node = _testKit.ActorOfAsTestActorRef(
+                    () => new TableContainer(_name, _nullDiscovery, typeof(CommonActorFactory<BlackHoleActor>), null, null),
+                    _name + "Container" + Containers.Count);
+
+                node.Tell(new ClusterActorDiscoveryMessage.ActorUp(Table, _name));
+                Containers.Add(node);
+
+                Table.Tell(new ClusterActorDiscoveryMessage.ActorUp(node, _name));
+            }
         }
 
         public DistributedActorTableContainerTest(ITestOutputHelper output)
@@ -28,28 +59,9 @@ namespace Akka.Cluster.Utility.Tests
         {
         }
 
-        public TestSystem Setup(int containerCount = 2)
+        private TestSystem Setup(int containerCount = 2)
         {
-            var name = "TestDict";
-            var nullDiscovery = ActorOf(BlackHoleActor.Props);
-
-            var table = ActorOfAsTestActorRef(
-                () => new Table("TEST", name, nullDiscovery, typeof(IncrementalIntegerIdGenerator), null),
-                name);
-
-            var containers = new TestActorRef<TableContainer>[containerCount];
-            for (var i = 0; i < containerCount; i++)
-            {
-                var node = ActorOfAsTestActorRef(
-                    () => new TableContainer(name, nullDiscovery, typeof(CommonActorFactory<BlackHoleActor>), null, null),
-                    name + "Container" + i);
-
-                node.Tell(new ClusterActorDiscoveryMessage.ActorUp(table, name));
-                containers[i] = node;
-
-                table.Tell(new ClusterActorDiscoveryMessage.ActorUp(node, name));
-            }
-            return new TestSystem { Table = table, Containers = containers };
+            return new TestSystem(this, "Test", containerCount);
         }
 
         [Fact]
@@ -207,7 +219,7 @@ namespace Akka.Cluster.Utility.Tests
 
             sys.Containers[0].Tell(new Message.Add(10, testActor));
             sys.Containers[0].Tell(new Message.Remove(10));
-            await Task.Delay(10);
+            await Task.Delay(100);
 
             var reply = await sys.Table.Ask<Message.GetReply>(new Message.Get(10));
             Assert.Equal(10, reply.Id);
@@ -223,7 +235,7 @@ namespace Akka.Cluster.Utility.Tests
             await sys.Containers[0].Ask<Message.AddReply>(new Message.Add(10, testActor));
 
             sys.Containers[1].Tell(new Message.Remove(10));
-            await Task.Delay(10);
+            await Task.Delay(100);
 
             var reply = await sys.Table.Ask<Message.GetReply>(new Message.Get(10));
             Assert.Equal(10, reply.Id);
@@ -242,7 +254,7 @@ namespace Akka.Cluster.Utility.Tests
             Assert.Equal(true, reply.Added);
 
             testActor.Tell(PoisonPill.Instance);
-            await Task.Delay(10);
+            await Task.Delay(100);
 
             var reply2 = await sys.Table.Ask<Message.GetReply>(new Message.Get(reply.Id));
             Assert.Equal(reply.Id, reply2.Id);
@@ -262,11 +274,29 @@ namespace Akka.Cluster.Utility.Tests
 
             sys.Table.Tell(new ClusterActorDiscoveryMessage.ActorDown(sys.Containers[0], "TestDictContainer0"));
             sys.Containers[0].Tell(new ClusterActorDiscoveryMessage.ActorDown(sys.Table, "TestDict"));
-            await Task.Delay(10);
+            await Task.Delay(100);
 
             var reply2 = await sys.Table.Ask<Message.GetReply>(new Message.Get(reply.Id));
             Assert.Equal(reply.Id, reply2.Id);
             Assert.Null(reply2.Actor);
+        }
+
+        [Fact]
+        public async Task Test_CreateBeforeContainer_And_WhenContainerReady_Succeed()
+        {
+            var sys = Setup(0);
+
+            var replyTask = sys.Table.Ask<Message.CreateReply>(
+                new Message.Create(10, BlackHoleActor.Props.Arguments));
+
+            sys.AddConstainer();
+
+            var reply = await replyTask;
+            Assert.Equal(10, reply.Id);
+
+            var reply2 = await sys.Table.Ask<Message.GetReply>(new Message.Get(reply.Id));
+            Assert.Equal(reply.Id, reply2.Id);
+            Assert.Equal(reply.Actor, reply2.Actor);
         }
 
         [Fact]

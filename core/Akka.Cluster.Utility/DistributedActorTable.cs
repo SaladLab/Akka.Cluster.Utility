@@ -36,12 +36,14 @@ namespace Akka.Cluster.Utility
 
         private class Creating
         {
+            public object[] Arguments;
             public DateTime RequestTime;
             public List<Tuple<IActorRef, RequestType>> Requesters;
             public IActorRef WorkingContainer;
         }
 
         private readonly Dictionary<TKey, Creating> _creatingMap = new Dictionary<TKey, Creating>();
+        private bool _queuedCreatingExists;
         private readonly TimeSpan _createTimeout = TimeSpan.FromSeconds(10);
 
         private bool _stopping;
@@ -124,12 +126,27 @@ namespace Akka.Cluster.Utility
                 return;
             }
 
-            _containerMap.Add(m.Actor, new Container
+            var container = new Container
             {
                 LinkTime = DateTime.UtcNow,
                 ActorMap = new Dictionary<TKey, IActorRef>()
-            });
+            };
+            _containerMap.Add(m.Actor, container);
             RebuildContainerWorkQueue();
+
+            if (_queuedCreatingExists)
+            {
+                foreach (var item in _creatingMap)
+                {
+                    if (item.Value.WorkingContainer == null)
+                    {
+                        item.Value.WorkingContainer = m.Actor;
+                        container.ActorMap.Add(item.Key, null);
+                        m.Actor.Tell(new DistributedActorTableMessage<TKey>.Internal.Create(item.Key, item.Value.Arguments));
+                    }
+                }
+                _queuedCreatingExists = false;
+            }
 
             if (_underTestEnvironment)
                 Context.Watch(m.Actor);
@@ -206,26 +223,31 @@ namespace Akka.Cluster.Utility
 
         private void CreateActor(RequestType requestType, TKey id, object[] args)
         {
-            // Send "create actor" request to container
-
             var container = DecideWorkingContainer();
-            if (container == null)
-            {
-                Sender.Tell(CreateReplyMessage(requestType, id, null, false));
-                return;
-            }
+
+            // add actor with creating status
 
             _actorMap.Add(id, null);
-            _containerMap[container].ActorMap.Add(id, null);
 
             _creatingMap.Add(id, new Creating
             {
+                Arguments = args,
                 RequestTime = DateTime.UtcNow,
                 Requesters = new List<Tuple<IActorRef, RequestType>> { Tuple.Create(Sender, requestType) },
                 WorkingContainer = container,
             });
 
-            container.Tell(new DistributedActorTableMessage<TKey>.Internal.Create(id, args));
+            // send "create actor" request to container or enqueue it to pending list
+
+            if (container != null)
+            {
+                _containerMap[container].ActorMap.Add(id, null);
+                container.Tell(new DistributedActorTableMessage<TKey>.Internal.Create(id, args));
+            }
+            else
+            {
+                _queuedCreatingExists = true;
+            }
         }
 
         private object CreateReplyMessage(RequestType requestType, TKey id, IActorRef actor, bool created)
@@ -380,7 +402,9 @@ namespace Akka.Cluster.Utility
             IActorRef actor;
             if (_actorMap.TryGetValue(id, out actor) == false)
             {
-                // request was already expired
+                // request was already expired so ask to remove it
+                _log.Info($"I got CreateReply but might be timeouted. " + $"(Id={id})");
+                Sender.Tell(new DistributedActorTableMessage<TKey>.Internal.Remove(id));
                 return;
             }
 
