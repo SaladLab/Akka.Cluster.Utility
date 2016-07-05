@@ -12,7 +12,12 @@ namespace Akka.Cluster.Utility
         public IActorRef Target { get; private set; }
         public TimeSpan? Timeout { get; private set; }
 
-        public DistributedActorTableRef(IActorRef target, TimeSpan? timeout = null)
+        public DistributedActorTableRef(IActorRef target)
+            : this(target, null)
+        {
+        }
+
+        public DistributedActorTableRef(IActorRef target, TimeSpan? timeout)
         {
             Target = target;
             Timeout = timeout;
@@ -65,7 +70,12 @@ namespace Akka.Cluster.Utility
         public IActorRef Target { get; private set; }
         public TimeSpan? Timeout { get; private set; }
 
-        public DistributedActorTableContainerRef(IActorRef target, TimeSpan? timeout = null)
+        public DistributedActorTableContainerRef(IActorRef target)
+            : this(target, null)
+        {
+        }
+
+        public DistributedActorTableContainerRef(IActorRef target, TimeSpan? timeout)
         {
             Target = target;
             Timeout = timeout;
